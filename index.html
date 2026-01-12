@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light dark">
+  <title>คลังคลิปดูแลผู้ป่วย</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- LIFF SDK -->
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="topbar__left">
+      <div class="title" id="appTitle">คลังคลิปแนะนำ</div>
+      <div class="subtitle" id="subtitle">กำลังโหลด…</div>
+    </div>
+
+    <div class="topbar__right">
+      <button class="chip" id="btnHelp" type="button" title="วิธีใช้">วิธีใช้</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel">
+      <div class="controls">
+        <label class="field">
+          <span class="field__label">เลือกหัวข้อ</span>
+          <select id="categorySelect"></select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">ค้นหา</span>
+          <input id="searchInput" type="search" placeholder="เช่น แผล, อาหาร, ไข้, ออกกำลังกาย…" />
+        </label>
+      </div>
+
+      <div class="actionsRow">
+        <button id="btnContinue" class="btn" type="button">ดูต่อจากล่าสุด</button>
+        <button id="btnShareTopic" class="btn" type="button">แชร์หัวข้อนี้</button>
+        <a id="btnCall" class="btn btn--danger" href="#">โทรพยาบาล</a>
+        <a id="btnChat" class="btn" href="#">แชทหาแอดมิน</a>
+      </div>
+
+      <div class="tip" id="tipBox"></div>
+    </section>
+
+    <section>
+      <div class="sectionHeader">
+        <div class="sectionHeader__title">คลิปในหัวข้อนี้</div>
+        <div class="sectionHeader__meta" id="countLabel"></div>
+      </div>
+      <div id="videoList" class="grid"></div>
+    </section>
+  </main>
+
+  <!-- Help modal -->
+  <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="วิธีใช้">
+    <div class="modalCard">
+      <div class="modalHeader">
+        <div class="modalTitle">วิธีใช้ (ฉบับสั้นและไม่ดราม่า)</div>
+        <button id="helpClose" class="chip" type="button">ปิด</button>
+      </div>
+      <div class="modalBody">
+        <ol class="helpList">
+          <li>เลือกหัวข้อจากดรอปดาวน์ด้านบน</li>
+          <li>กด “ดูคลิป” เพื่อเปิดวิดีโอ (เล่นผ่าน Google Drive)</li>
+          <li>กด “ทำเครื่องหมายดูแล้ว” เพื่อให้ระบบจำได้ (อยู่ในเครื่องผู้ใช้)</li>
+          <li>ปุ่ม “แชร์” จะส่งลิงก์ให้ญาติ/ผู้ดูแล (ใช้ได้ดีที่สุดบนแอป LINE)</li>
+        </ol>
+        <div class="note">
+          หมายเหตุ: คลิปต้องตั้ง Google Drive เป็น <b>Anyone with the link → Viewer</b> ไม่งั้นคนอื่นเปิดไม่ได้
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Video modal -->
+  <div id="videoModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="วิดีโอ">
+    <div class="modalCard modalCard--video">
+      <div class="modalHeader">
+        <div>
+          <div id="videoTitle" class="modalTitle"></div>
+          <div id="videoMeta" class="modalMeta"></div>
+        </div>
+        <button id="videoClose" class="chip" type="button">ปิด</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="ratio16x9">
+          <iframe id="player" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+        </div>
+
+        <div id="videoNote" class="videoNote"></div>
+
+        <div class="modalFooter">
+          <button id="btnMarkWatched" class="btn" type="button">ทำเครื่องหมายว่า “ดูแล้ว”</button>
+          <button id="btnShareVideo" class="btn" type="button">แชร์คลิปนี้</button>
+          <button id="btnCopyLink" class="btn" type="button">คัดลอกลิงก์</button>
+          <a id="btnOpenDrive" class="btn" href="#" target="_blank" rel="noopener">เปิดเต็มจอ (Drive)</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ใส่ LIFF ID ของคุณตรงนี้ (ได้จาก LINE Developers Console > LIFF)
+    window.LIFF_ID = "PASTE_YOUR_LIFF_ID_HERE";
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
