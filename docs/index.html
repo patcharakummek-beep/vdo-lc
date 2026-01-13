@@ -30,10 +30,16 @@
           <span class="field__label">เลือกหัวข้อ</span>
           <select id="categorySelect"></select>
         </label>
+
+        <label class="field">
+          <span class="field__label">ค้นหา</span>
+          <input id="searchInput" type="search" placeholder="เช่น แผล, อาหาร, ยา, ไข้, ขับถ่าย…" />
+        </label>
       </div>
 
       <div class="actionsRow">
         <button id="btnContinue" class="btn" type="button">ดูต่อจากล่าสุด</button>
+        <button id="btnShareTopic" class="btn" type="button">แชร์หัวข้อนี้</button>
         <a id="btnCall" class="btn btn--danger" href="#" rel="nofollow">โทรพยาบาล</a>
         <a id="btnChat" class="btn" href="#" rel="nofollow">แชทหาแอดมิน</a>
       </div>
@@ -64,6 +70,7 @@
           <li>เลือกหัวข้อ A/B/C จากดรอปดาวน์</li>
           <li>กด “ดูคลิป” เพื่อเปิดวิดีโอ (เล่นจาก Google Drive)</li>
           <li>กด “ดูแล้ว” เพื่อให้ระบบจำในเครื่อง (ถ้าเครื่องอนุญาต storage)</li>
+          <li>กด “แชร์” เพื่อส่งให้ญาติ/ผู้ดูแล</li>
         </ol>
         <div class="note">
           ถ้าคลิปเปิดไม่ได้ ให้เช็คว่าไฟล์ใน Google Drive ตั้งเป็น <b>Anyone with the link → Viewer</b>
@@ -92,6 +99,8 @@
 
         <div class="modalFooter">
           <button id="btnToggleWatched" class="btn" type="button">ทำเครื่องหมายดูแล้ว</button>
+          <button id="btnShareVideo" class="btn" type="button">แชร์คลิปนี้</button>
+          <button id="btnCopyLink" class="btn" type="button">คัดลอกลิงก์ Drive</button>
           <a id="btnOpenDrive" class="btn" href="#" target="_blank" rel="noopener">เปิดเต็มจอ (Drive)</a>
         </div>
       </div>
