@@ -4,21 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="light dark">
-  <title>คลังคลิปดูแลผู้ป่วย</title>
+  <title>คลังคลิปผู้ป่วยผ่าตัดถุงน้ำดี (LC)</title>
+
   <link rel="stylesheet" href="style.css" />
-  <!-- LIFF SDK -->
+
+  <!-- LIFF SDK (optional; app still works in normal browser) -->
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 
 <body>
   <header class="topbar">
     <div class="topbar__left">
-      <div class="title" id="appTitle">คลังคลิปแนะนำ</div>
-      <div class="subtitle" id="subtitle">กำลังโหลด…</div>
+      <div class="title" id="appTitle">คลังคลิป</div>
+      <div class="subtitle" id="subtitle">กำลังโหลดข้อมูล…</div>
     </div>
-
     <div class="topbar__right">
-      <button class="chip" id="btnHelp" type="button" title="วิธีใช้">วิธีใช้</button>
+      <button class="chip" id="btnHelp" type="button">วิธีใช้</button>
     </div>
   </header>
 
@@ -32,51 +33,53 @@
 
         <label class="field">
           <span class="field__label">ค้นหา</span>
-          <input id="searchInput" type="search" placeholder="เช่น แผล, อาหาร, ไข้, ออกกำลังกาย…" />
+          <input id="searchInput" type="search" placeholder="เช่น แผล, อาหาร, ยา, ไข้, ขับถ่าย…" />
         </label>
       </div>
 
       <div class="actionsRow">
         <button id="btnContinue" class="btn" type="button">ดูต่อจากล่าสุด</button>
         <button id="btnShareTopic" class="btn" type="button">แชร์หัวข้อนี้</button>
-        <a id="btnCall" class="btn btn--danger" href="#">โทรพยาบาล</a>
-        <a id="btnChat" class="btn" href="#">แชทหาแอดมิน</a>
+        <a id="btnCall" class="btn btn--danger" href="#" rel="nofollow">โทรพยาบาล</a>
+        <a id="btnChat" class="btn" href="#" rel="nofollow">แชทหาแอดมิน</a>
       </div>
 
-      <div class="tip" id="tipBox"></div>
+      <div id="tipBox" class="tip"></div>
+      <div id="statusBox" class="status hidden"></div>
     </section>
 
-    <section>
+    <section class="listSection">
       <div class="sectionHeader">
         <div class="sectionHeader__title">คลิปในหัวข้อนี้</div>
         <div class="sectionHeader__meta" id="countLabel"></div>
       </div>
+
       <div id="videoList" class="grid"></div>
     </section>
   </main>
 
-  <!-- Help modal -->
+  <!-- HELP MODAL -->
   <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="วิธีใช้">
     <div class="modalCard">
       <div class="modalHeader">
-        <div class="modalTitle">วิธีใช้ (ฉบับสั้นและไม่ดราม่า)</div>
+        <div class="modalTitle">วิธีใช้</div>
         <button id="helpClose" class="chip" type="button">ปิด</button>
       </div>
       <div class="modalBody">
         <ol class="helpList">
-          <li>เลือกหัวข้อจากดรอปดาวน์ด้านบน</li>
-          <li>กด “ดูคลิป” เพื่อเปิดวิดีโอ (เล่นผ่าน Google Drive)</li>
-          <li>กด “ทำเครื่องหมายดูแล้ว” เพื่อให้ระบบจำได้ (อยู่ในเครื่องผู้ใช้)</li>
-          <li>ปุ่ม “แชร์” จะส่งลิงก์ให้ญาติ/ผู้ดูแล (ใช้ได้ดีที่สุดบนแอป LINE)</li>
+          <li>เลือกหัวข้อ A/B/C จากดรอปดาวน์</li>
+          <li>กด “ดูคลิป” เพื่อเปิดวิดีโอ (เล่นจาก Google Drive)</li>
+          <li>กด “ดูแล้ว” เพื่อให้ระบบจำในเครื่อง (ถ้าเครื่องอนุญาต storage)</li>
+          <li>กด “แชร์” เพื่อส่งให้ญาติ/ผู้ดูแล</li>
         </ol>
         <div class="note">
-          หมายเหตุ: คลิปต้องตั้ง Google Drive เป็น <b>Anyone with the link → Viewer</b> ไม่งั้นคนอื่นเปิดไม่ได้
+          ถ้าคลิปเปิดไม่ได้ ให้เช็คว่าไฟล์ใน Google Drive ตั้งเป็น <b>Anyone with the link → Viewer</b>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Video modal -->
+  <!-- VIDEO MODAL -->
   <div id="videoModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="วิดีโอ">
     <div class="modalCard modalCard--video">
       <div class="modalHeader">
@@ -95,9 +98,9 @@
         <div id="videoNote" class="videoNote"></div>
 
         <div class="modalFooter">
-          <button id="btnMarkWatched" class="btn" type="button">ทำเครื่องหมายว่า “ดูแล้ว”</button>
+          <button id="btnToggleWatched" class="btn" type="button">ทำเครื่องหมายดูแล้ว</button>
           <button id="btnShareVideo" class="btn" type="button">แชร์คลิปนี้</button>
-          <button id="btnCopyLink" class="btn" type="button">คัดลอกลิงก์</button>
+          <button id="btnCopyLink" class="btn" type="button">คัดลอกลิงก์ Drive</button>
           <a id="btnOpenDrive" class="btn" href="#" target="_blank" rel="noopener">เปิดเต็มจอ (Drive)</a>
         </div>
       </div>
@@ -105,9 +108,12 @@
   </div>
 
   <script>
-    // ใส่ LIFF ID ของคุณตรงนี้ (ได้จาก LINE Developers Console > LIFF)
-    window.LIFF_ID = "PASTE_YOUR_LIFF_ID_HERE";
+    // ตั้งค่า LIFF ID ตรงนี้ (ถ้ายังไม่ตั้ง ระบบก็ยังใช้เป็นเว็บปกติได้)
+    window.APP_CONFIG = {
+      LIFF_ID: "PASTE_YOUR_LIFF_ID_HERE",
+      DATA_URL: "data.json"
+    };
   </script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=2026-01-13"></script>
 </body>
 </html>
