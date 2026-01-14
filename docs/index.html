@@ -8,6 +8,8 @@
   <title>คลังคลิปผู้ป่วยผ่าตัดถุงน้ำดี (LC)</title>
 
   <link rel="stylesheet" href="style.css" />
+
+  <!-- LIFF SDK (optional; app works even without LIFF init) -->
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 
@@ -19,33 +21,36 @@
     </div>
 
     <button class="iconBtn" id="btnHelp" type="button" aria-label="วิธีใช้">
-      <span class="iconBtn__dot"></span>
+      <span class="iconBtn__spark" aria-hidden="true">✦</span>
       วิธีใช้
     </button>
   </header>
 
   <main class="container">
-    <section class="dash">
-      <div class="tabsWrap">
-        <div class="tabsTitle">เส้นทางการดูแล</div>
-        <div id="categoryTabs" class="tabs" role="tablist" aria-label="เลือกหัวข้อ"></div>
-      </div>
-
-      <div class="summary">
-        <div class="summary__left">
-          <div id="progressRing" class="ring" aria-label="ความคืบหน้า">
-            <div class="ring__inner">
-              <div id="ringValue" class="ring__value">0%</div>
-            </div>
-          </div>
-
-          <div class="summaryText">
-            <div id="progressText" class="summaryText__main">ดูแล้ว 0/0 คลิป</div>
-            <div id="progressHint" class="summaryText__sub">แนะนำให้เริ่มจาก “เริ่มที่นี่” แล้วไล่ตามลำดับ</div>
-          </div>
+    <section class="hero">
+      <div class="heroTop">
+        <div class="heroTop__left">
+          <div class="heroLabel">เส้นทางการดูแล</div>
+          <div id="categoryTabs" class="segTabs" role="tablist" aria-label="เลือกหัวข้อ"></div>
         </div>
 
-        <div class="summary__right">
+        <div class="heroTop__right">
+          <div class="ring" id="progressRing" aria-label="ความคืบหน้า">
+            <div class="ring__inner">
+              <div class="ring__value" id="ringValue">0%</div>
+              <div class="ring__caption" id="ringCaption">progress</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="heroBottom">
+        <div class="heroStats">
+          <div class="heroStats__main" id="progressText">ดูแล้ว 0/0 คลิป</div>
+          <div class="heroStats__sub" id="progressHint">แนะนำให้เริ่มจาก “เริ่มที่นี่” แล้วไล่ตามลำดับ</div>
+        </div>
+
+        <div class="heroActions">
           <button id="btnStart" class="btn btn--ghost" type="button">เริ่มที่นี่</button>
           <button id="btnContinue" class="btn btn--primary" type="button">ดูต่อ</button>
         </div>
@@ -65,6 +70,12 @@
     </section>
   </main>
 
+  <!-- TOAST -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <!-- CONFETTI -->
+  <div id="confetti" class="confetti" aria-hidden="true"></div>
+
   <!-- HELP MODAL -->
   <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="วิธีใช้">
     <div class="modalCard">
@@ -75,10 +86,10 @@
 
       <div class="modalBody">
         <ol class="helpList">
-          <li>เลือกหัวข้อ A/B/C จากแถบ “เส้นทางการดูแล”</li>
-          <li>ดูความคืบหน้าที่วงกลม (ดูแล้วกี่เปอร์เซ็นต์)</li>
-          <li>กด “ดูคลิป” เพื่อเปิดวิดีโอ</li>
-          <li>ในหน้าวิดีโอ กด “ทำเครื่องหมายดูแล้ว” และใช้ “ก่อนหน้า/ถัดไป” ได้</li>
+          <li>กดเลือกหัวข้อ A/B/C จากแถบ “เส้นทางการดูแล”</li>
+          <li>ดูความคืบหน้าในวงกลม (เปอร์เซ็นต์) และ “ดูแล้ว x/y”</li>
+          <li>รายการคลิปเรียงเป็น “ขั้นตอน” กดการ์ดเพื่อดูคลิป</li>
+          <li>ในหน้าวิดีโอ ใช้ “ก่อนหน้า/ถัดไป” และทำเครื่องหมาย “ดูแล้ว”</li>
         </ol>
 
         <div class="note">
@@ -110,6 +121,7 @@
           <button id="btnPrev" class="btn btn--ghost" type="button">ก่อนหน้า</button>
           <button id="btnToggleWatched" class="btn btn--primary" type="button">ทำเครื่องหมายดูแล้ว</button>
           <button id="btnNext" class="btn btn--ghost" type="button">ถัดไป</button>
+
           <a id="btnOpenDrive" class="link" href="#" target="_blank" rel="noopener">เปิดเต็มจอ (Drive)</a>
         </div>
       </div>
@@ -122,6 +134,6 @@
       DATA_URL: "data.json"
     };
   </script>
-  <script src="app.js?v=wow3-2026-01-14"></script>
+  <script src="app.js?v=ultra-2026-01-14"></script>
 </body>
 </html>
