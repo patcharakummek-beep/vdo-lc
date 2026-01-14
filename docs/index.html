@@ -28,12 +28,16 @@
   <main class="container">
     <!-- HERO / DASHBOARD -->
     <section class="hero" id="hero">
+      <div class="heroBlob" aria-hidden="true"></div>
+      <div class="heroGrid" aria-hidden="true"></div>
       <div class="heroBgIcon" id="heroBgIcon" aria-hidden="true"></div>
 
       <div class="heroTop">
         <div class="topic">
-          <div class="topic__pill" id="topicPill">หัวข้อ</div>
-          <div class="topic__hint" id="topicHint"></div>
+          <div class="topicChip" id="topicChip" aria-label="หัวข้อ">
+            <span class="topicChip__icon" id="topicEmoji" aria-hidden="true">🎬</span>
+            <span class="topicChip__text" id="topicLabel">หัวข้อ</span>
+          </div>
         </div>
 
         <div class="ring" id="progressRing" aria-label="ความคืบหน้า">
@@ -47,15 +51,22 @@
       <div class="heroMid">
         <div class="progressRow">
           <div class="progressText" id="progressText">ดูแล้ว 0/0 (เหลือ 0)</div>
+
           <div class="progressPills">
-            <div class="pill" id="pillWatched"><span class="pill__k">ดูแล้ว</span><span class="pill__v" id="pillWatchedVal">0</span></div>
-            <div class="pill" id="pillRemain"><span class="pill__k">เหลือ</span><span class="pill__v" id="pillRemainVal">0</span></div>
-            <div class="pill" id="pillMust"><span class="pill__k">ต้องดู</span><span class="pill__v" id="pillMustVal">0/0</span></div>
+            <div class="pill">
+              <span class="pill__k">ดูแล้ว</span>
+              <span class="pill__v" id="pillWatchedVal">0</span>
+            </div>
+            <div class="pill">
+              <span class="pill__k">เหลือ</span>
+              <span class="pill__v" id="pillRemainVal">0</span>
+            </div>
           </div>
         </div>
 
         <div class="bar" role="progressbar" aria-label="ความคืบหน้า" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBar">
           <div class="bar__fill" id="progressFill"></div>
+          <div class="bar__shine" aria-hidden="true"></div>
           <div class="bar__glow" aria-hidden="true"></div>
         </div>
 
@@ -142,6 +153,6 @@
       DATA_URL: "data.json"
     };
   </script>
-  <script src="app.js?v=locktopic-2026-01-14-4"></script>
+  <script src="app.js?v=locktopic-2026-01-14-5"></script>
 </body>
 </html>
