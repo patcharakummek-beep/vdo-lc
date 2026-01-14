@@ -8,8 +8,7 @@
   <title>คลังคลิปผู้ป่วยผ่าตัดถุงน้ำดี (LC)</title>
 
   <link rel="stylesheet" href="style.css" />
-
-  <!-- LIFF SDK (optional; app works even without LIFF init) -->
+  <!-- LIFF SDK (optional) -->
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 
@@ -20,34 +19,32 @@
       <div class="brand__sub" id="subtitle">กำลังโหลด…</div>
     </div>
 
-    <button class="iconBtn" id="btnHelp" type="button" aria-label="วิธีใช้">
-      <span class="iconBtn__spark" aria-hidden="true">✦</span>
-      วิธีใช้
+    <button class="helpBtn" id="btnHelp" type="button" aria-label="วิธีใช้">
+      <span class="helpBtn__icon" aria-hidden="true">?</span>
+      <span class="helpBtn__text">วิธีใช้</span>
     </button>
   </header>
 
   <main class="container">
     <section class="hero">
       <div class="heroTop">
-        <div class="heroTop__left">
-          <div class="heroLabel">เส้นทางการดูแล</div>
-          <div id="categoryTabs" class="segTabs" role="tablist" aria-label="เลือกหัวข้อ"></div>
+        <div class="topic">
+          <div class="topic__pill" id="topicPill">หัวข้อ</div>
+          <div class="topic__meta" id="topicMeta"></div>
         </div>
 
-        <div class="heroTop__right">
-          <div class="ring" id="progressRing" aria-label="ความคืบหน้า">
-            <div class="ring__inner">
-              <div class="ring__value" id="ringValue">0%</div>
-              <div class="ring__caption" id="ringCaption">progress</div>
-            </div>
+        <div class="ring" id="progressRing" aria-label="ความคืบหน้า">
+          <div class="ring__inner">
+            <div class="ring__value" id="ringValue">0%</div>
+            <div class="ring__caption">สำเร็จ</div>
           </div>
         </div>
       </div>
 
       <div class="heroBottom">
         <div class="heroStats">
-          <div class="heroStats__main" id="progressText">ดูแล้ว 0/0 คลิป</div>
-          <div class="heroStats__sub" id="progressHint">แนะนำให้เริ่มจาก “เริ่มที่นี่” แล้วไล่ตามลำดับ</div>
+          <div class="heroStats__main" id="progressText">ดูแล้ว 0/0 (เหลือ 0)</div>
+          <div class="heroStats__sub">หน้านี้ “ล็อกหัวข้อ” ตาม Rich Menu เพื่อป้องกันกดผิด</div>
         </div>
 
         <div class="heroActions">
@@ -56,7 +53,6 @@
         </div>
       </div>
 
-      <div id="tipBox" class="tip"></div>
       <div id="statusBox" class="status hidden"></div>
     </section>
 
@@ -70,26 +66,21 @@
     </section>
   </main>
 
-  <!-- TOAST -->
-  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-
-  <!-- CONFETTI -->
-  <div id="confetti" class="confetti" aria-hidden="true"></div>
-
   <!-- HELP MODAL -->
   <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="วิธีใช้">
     <div class="modalCard">
       <div class="modalHeader">
         <div class="modalTitle">วิธีใช้</div>
-        <button id="helpClose" class="iconBtn" type="button">ปิด</button>
+        <button id="helpClose" class="helpBtn" type="button">ปิด</button>
       </div>
 
       <div class="modalBody">
         <ol class="helpList">
-          <li>กดเลือกหัวข้อ A/B/C จากแถบ “เส้นทางการดูแล”</li>
-          <li>ดูความคืบหน้าในวงกลม (เปอร์เซ็นต์) และ “ดูแล้ว x/y”</li>
-          <li>รายการคลิปเรียงเป็น “ขั้นตอน” กดการ์ดเพื่อดูคลิป</li>
-          <li>ในหน้าวิดีโอ ใช้ “ก่อนหน้า/ถัดไป” และทำเครื่องหมาย “ดูแล้ว”</li>
+          <li><b>หัวข้อจะถูกล็อก</b> ตามเมนูที่คุณกดใน Rich Menu (เพื่อไม่ให้สลับผิดหัวข้อ)</li>
+          <li>เลือกคลิปจาก “รายการคลิป” แล้วกด <b>ดูคลิป</b></li>
+          <li>กด <b>ดูต่อ</b> เพื่อกลับไปคลิปล่าสุดของหัวข้อนี้</li>
+          <li>ในหน้าวิดีโอ กด <b>ทำเครื่องหมายดูแล้ว</b> เพื่อให้ระบบจำในเครื่องนี้ (ถ้าเครื่องอนุญาต)</li>
+          <li>ถ้าต้องการเปลี่ยนหัวข้อ ให้ปิดหน้านี้แล้วกลับไปกด <b>Rich Menu</b> ใหม่</li>
         </ol>
 
         <div class="note">
@@ -107,7 +98,7 @@
           <div id="videoTitle" class="modalTitle"></div>
           <div id="videoMeta" class="modalMeta"></div>
         </div>
-        <button id="videoClose" class="iconBtn" type="button">ปิด</button>
+        <button id="videoClose" class="helpBtn" type="button">ปิด</button>
       </div>
 
       <div class="modalBody">
@@ -134,6 +125,6 @@
       DATA_URL: "data.json"
     };
   </script>
-  <script src="app.js?v=ultra-2026-01-14"></script>
+  <script src="app.js?v=locktopic-2026-01-14-1"></script>
 </body>
 </html>
