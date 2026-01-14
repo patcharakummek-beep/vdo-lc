@@ -13,7 +13,6 @@
   };
 
   // ---------- Safe storage ----------
-  // Storage.getItem returns null if key doesn't exist → must guard.
   function safeJsonParse(s, fallback) {
     try {
       if (s === null || s === undefined || s === "") return fallback;
@@ -115,7 +114,6 @@
     return "https://drive.google.com/file/d/" + encodeURIComponent(driveId) + "/preview";
   }
   function drivePreviewFull(driveId) {
-    // Use /preview as "fullscreen" to reduce Drive UI.
     return drivePreview(driveId);
   }
 
@@ -179,7 +177,7 @@
     const mustTotal = vids.filter(v => v.mustWatch).length;
     const mustWatched = vids.filter(v => v.mustWatch && watchedSet.has(v.id)).length;
 
-    return { total, watched, percent, mustTotal, mustWatched };
+    return { total, watched, percent, mustTotal, mustWatched, watchedSet };
   }
 
   function pickStartVideo(topicVideos) {
@@ -192,6 +190,26 @@
     if (byMust) return byMust;
 
     return topicVideos[0];
+  }
+
+  function pickNextVideo(videos, watchedSet, lastId) {
+    if (!videos || videos.length === 0) return null;
+
+    // Prefer: after last watched/opened, pick next not-watched.
+    if (lastId) {
+      const idx = videos.findIndex(v => v.id === lastId);
+      if (idx >= 0) {
+        for (let i = idx + 1; i < videos.length; i++) {
+          if (!watchedSet.has(videos[i].id)) return videos[i];
+        }
+      }
+    }
+    // Fallback: first not-watched.
+    const firstUnwatched = videos.find(v => !watchedSet.has(v.id));
+    if (firstUnwatched) return firstUnwatched;
+
+    // All watched → allow review from first.
+    return videos[0];
   }
 
   // ---------- Render ----------
@@ -210,31 +228,75 @@
 
     const info = calcProgress(state.topic);
 
+    // ring
     const ring = $("progressRing");
     const ringValue = $("ringValue");
     const deg = Math.round((info.percent / 100) * 360);
-
     if (ring) ring.style.background = `conic-gradient(var(--accent) 0deg ${deg}deg, var(--ringTrack) ${deg}deg 360deg)`;
     if (ringValue) ringValue.textContent = info.percent + "%";
 
-    const progressText = $("progressText");
-    if (progressText) {
-      const remain = Math.max(0, info.total - info.watched);
-      progressText.textContent = `ดูแล้ว ${info.watched}/${info.total} (เหลือ ${remain})`;
-    }
+    // stats
+    const statWatched = $("statWatched");
+    const statRemain = $("statRemain");
+    const statMust = $("statMust");
 
-    const mustText = $("mustText");
-    if (mustText) {
-      if (info.mustTotal) mustText.textContent = `ต้องดู ${info.mustWatched}/${info.mustTotal}`;
-      else mustText.textContent = "";
-    }
+    if (statWatched) statWatched.textContent = String(info.watched);
+    if (statRemain) statRemain.textContent = String(Math.max(0, info.total - info.watched));
+    if (statMust) statMust.textContent = info.mustTotal ? `${info.mustWatched}/${info.mustTotal}` : "—";
 
+    // Next card + dots
+    const videos = getTopicVideos(state.topic);
     const p = loadProgress();
     const lastId = (p.lastByTopic && state.topic) ? p.lastByTopic[state.topic] : null;
 
-    const videos = getTopicVideos(state.topic);
-    const startVideo = pickStartVideo(videos);
+    const next = pickNextVideo(videos, info.watchedSet, lastId);
+    const nextCard = $("nextCard");
+    const nextLabel = $("nextLabel");
+    const nextTitle = $("nextTitle");
+    const nextMeta = $("nextMeta");
 
+    if (nextCard) {
+      if (!next) {
+        nextCard.disabled = true;
+        nextCard.onclick = null;
+      } else {
+        const idx = videos.findIndex(v => v.id === next.id);
+        const allWatched = (info.total > 0 && info.watched === info.total);
+        const watchedThis = info.watchedSet.has(next.id);
+
+        if (nextLabel) nextLabel.textContent = allWatched ? "ทบทวน" : "ถัดไป";
+        if (nextTitle) nextTitle.textContent = allWatched ? (videos[0]?.title || "—") : next.title;
+
+        let meta = "";
+        if (idx >= 0 && videos.length) meta += `ขั้น ${idx + 1}/${videos.length}`;
+        if (!allWatched) meta += ` • ${watchedThis ? "ดูแล้ว" : "ยังไม่ดู"}`;
+        if (next.mustWatch) meta += " • ต้องดู";
+        if (nextMeta) nextMeta.textContent = meta || "—";
+
+        nextCard.onclick = () => openVideo(allWatched ? videos[0].id : next.id);
+      }
+    }
+
+    // step dots
+    const dotTrack = $("stepDots");
+    if (dotTrack) {
+      dotTrack.innerHTML = "";
+      videos.forEach((v, idx) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "dot"
+          + (info.watchedSet.has(v.id) ? " is-watched" : "")
+          + (next && v.id === next.id && !info.watchedSet.has(v.id) ? " is-next" : "")
+          + (v.mustWatch ? " is-must" : "");
+        b.title = v.title;
+        b.setAttribute("aria-label", `ขั้น ${idx + 1}: ${v.title}`);
+        b.onclick = () => openVideo(v.id);
+        dotTrack.appendChild(b);
+      });
+    }
+
+    // actions
+    const startVideo = pickStartVideo(videos);
     const btnStart = $("btnStart");
     const btnContinue = $("btnContinue");
 
@@ -363,11 +425,9 @@
     const player = $("player");
     if (player) player.src = drivePreview(v.driveId);
 
-    // watermark: show topic + (optional) LINE user id fragment if available
     const topicLabel = (getCategories().find(c => c.key === state.topic)?.label) || state.topic || "";
     setWatermark(`CONFIDENTIAL • ${topicLabel} • ห้ามส่งต่อ`);
 
-    // Auto mark watched (no button)
     startAutoWatchMark(v.id);
 
     // prev/next
@@ -395,7 +455,6 @@
   }
 
   function closeVideo() {
-    // If user kept video open long enough but timer hasn't fired (rare), mark on close.
     if (state.currentVideoId && state.openedAt) {
       const dt = Date.now() - state.openedAt;
       if (dt >= 10000) markWatched(state.currentVideoId);
@@ -431,7 +490,6 @@
       if (e.target && e.target.id === "videoModal") closeVideo();
     });
 
-    // Keyboard (desktop)
     document.addEventListener("keydown", (e) => {
       const videoOpen = !$("videoModal")?.classList.contains("hidden");
       const helpOpen = !$("helpModal")?.classList.contains("hidden");
@@ -475,18 +533,15 @@
 
     const title = state.data.appTitle || "คลังคลิป";
     document.title = title;
-
     $("appTitle") && ($("appTitle").textContent = title);
 
     const cats = getCategories();
 
-    // Lock topic from URL / liff.state. If missing, default to first category.
     const topicParam = parseParam("topic");
     state.topic = topicParam || (cats[0] ? cats[0].key : "preop");
 
     applyTheme(state.topic);
 
-    // Deep link to specific video (optional)
     const vParam = parseParam("v");
 
     renderAll();
