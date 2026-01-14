@@ -26,6 +26,7 @@
   </header>
 
   <main class="container">
+    <!-- HERO / DASHBOARD -->
     <section class="hero">
       <div class="heroTop">
         <div class="topic">
@@ -40,12 +41,42 @@
         </div>
       </div>
 
-      <div class="heroBottom">
-        <div class="heroStats">
-          <div class="heroStats__main" id="progressText">ดูแล้ว 0/0 (เหลือ 0)</div>
-          <div class="heroStats__sub" id="mustText"></div>
+      <!-- WOW AREA -->
+      <div class="heroMid">
+        <div class="statsRow" role="group" aria-label="สรุปความคืบหน้า">
+          <div class="statCard">
+            <div class="statCard__num" id="statWatched">0</div>
+            <div class="statCard__label">ดูแล้ว</div>
+          </div>
+
+          <div class="statCard">
+            <div class="statCard__num" id="statRemain">0</div>
+            <div class="statCard__label">เหลือ</div>
+          </div>
+
+          <div class="statCard">
+            <div class="statCard__num" id="statMust">0/0</div>
+            <div class="statCard__label">ต้องดู</div>
+          </div>
         </div>
 
+        <button id="nextCard" class="nextCard" type="button">
+          <div class="nextCard__left">
+            <div class="nextCard__label" id="nextLabel">ถัดไป</div>
+            <div class="nextCard__title" id="nextTitle">—</div>
+            <div class="nextCard__meta" id="nextMeta">—</div>
+          </div>
+
+          <div class="nextCard__right" aria-hidden="true">
+            <div class="nextCard__pill">▶</div>
+            <div class="nextCard__arrow">→</div>
+          </div>
+        </button>
+
+        <div class="dotTrack" id="stepDots" aria-label="ขั้นตอน"></div>
+      </div>
+
+      <div class="heroBottom">
         <div class="heroActions">
           <button id="btnStart" class="btn btn--ghost" type="button">เริ่มที่นี่</button>
           <button id="btnContinue" class="btn btn--primary" type="button">ดูต่อ</button>
@@ -55,6 +86,7 @@
       <div id="statusBox" class="status hidden"></div>
     </section>
 
+    <!-- LIST -->
     <section class="listSection">
       <div class="sectionHeader">
         <div class="sectionHeader__title">รายการคลิป</div>
@@ -128,6 +160,6 @@
       DATA_URL: "data.json"
     };
   </script>
-  <script src="app.js?v=locktopic-2026-01-14-2"></script>
+  <script src="app.js?v=locktopic-2026-01-14-3"></script>
 </body>
 </html>
