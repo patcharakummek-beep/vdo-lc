@@ -2,21 +2,21 @@
 <html lang="th">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="color-scheme" content="light dark">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
   <title>คลังคลิปผู้ป่วยผ่าตัดถุงน้ำดี (LC)</title>
 
   <link rel="stylesheet" href="style.css" />
 
-  <!-- LIFF SDK (optional; app still works in normal browser) -->
+  <!-- LIFF SDK (ไม่จำเป็นต่อการดูคลิป แต่ใส่ไว้ไม่เสียหาย) -->
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 
 <body>
   <header class="topbar">
     <div class="topbar__left">
-      <div class="title" id="appTitle">คลังคลิป</div>
-      <div class="subtitle" id="subtitle">กำลังโหลดข้อมูล…</div>
+      <div class="title" id="appTitle">คลังคลิปผู้ป่วยผ่าตัดถุงน้ำดี (LC)</div>
+      <div class="subtitle" id="subtitle">กำลังโหลด…</div>
     </div>
     <div class="topbar__right">
       <button class="chip" id="btnHelp" type="button">วิธีใช้</button>
@@ -25,23 +25,13 @@
 
   <main class="container">
     <section class="panel">
-      <div class="controls">
+      <div class="panelRow">
         <label class="field">
           <span class="field__label">เลือกหัวข้อ</span>
           <select id="categorySelect"></select>
         </label>
 
-        <label class="field">
-          <span class="field__label">ค้นหา</span>
-          <input id="searchInput" type="search" placeholder="เช่น แผล, อาหาร, ยา, ไข้, ขับถ่าย…" />
-        </label>
-      </div>
-
-      <div class="actionsRow">
-        <button id="btnContinue" class="btn" type="button">ดูต่อจากล่าสุด</button>
-        <button id="btnShareTopic" class="btn" type="button">แชร์หัวข้อนี้</button>
-        <a id="btnCall" class="btn btn--danger" href="#" rel="nofollow">โทรพยาบาล</a>
-        <a id="btnChat" class="btn" href="#" rel="nofollow">แชทหาแอดมิน</a>
+        <button id="btnContinue" class="btn btn--primary" type="button">ดูต่อจากล่าสุด</button>
       </div>
 
       <div id="tipBox" class="tip"></div>
@@ -50,7 +40,7 @@
 
     <section class="listSection">
       <div class="sectionHeader">
-        <div class="sectionHeader__title">คลิปในหัวข้อนี้</div>
+        <div class="sectionHeader__title">รายการคลิป</div>
         <div class="sectionHeader__meta" id="countLabel"></div>
       </div>
 
@@ -67,10 +57,10 @@
       </div>
       <div class="modalBody">
         <ol class="helpList">
-          <li>เลือกหัวข้อ A/B/C จากดรอปดาวน์</li>
-          <li>กด “ดูคลิป” เพื่อเปิดวิดีโอ (เล่นจาก Google Drive)</li>
-          <li>กด “ดูแล้ว” เพื่อให้ระบบจำในเครื่อง (ถ้าเครื่องอนุญาต storage)</li>
-          <li>กด “แชร์” เพื่อส่งให้ญาติ/ผู้ดูแล</li>
+          <li>เลือกหัวข้อ A/B/C</li>
+          <li>กด “ดูคลิป” เพื่อเปิดวิดีโอ</li>
+          <li>กด “ทำเครื่องหมายดูแล้ว” เพื่อให้ระบบจำว่าเคยดู (ถ้าเครื่องอนุญาต)</li>
+          <li>กด “ดูต่อจากล่าสุด” เพื่อกลับไปคลิปล่าสุดของหัวข้อนั้น</li>
         </ol>
         <div class="note">
           ถ้าคลิปเปิดไม่ได้ ให้เช็คว่าไฟล์ใน Google Drive ตั้งเป็น <b>Anyone with the link → Viewer</b>
@@ -99,21 +89,18 @@
 
         <div class="modalFooter">
           <button id="btnToggleWatched" class="btn" type="button">ทำเครื่องหมายดูแล้ว</button>
-          <button id="btnShareVideo" class="btn" type="button">แชร์คลิปนี้</button>
-          <button id="btnCopyLink" class="btn" type="button">คัดลอกลิงก์ Drive</button>
-          <a id="btnOpenDrive" class="btn" href="#" target="_blank" rel="noopener">เปิดเต็มจอ (Drive)</a>
+          <a id="btnOpenDrive" class="btn btn--ghost" href="#" target="_blank" rel="noopener">เปิดเต็มจอ (Drive)</a>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // ตั้งค่า LIFF ID ตรงนี้ (ถ้ายังไม่ตั้ง ระบบก็ยังใช้เป็นเว็บปกติได้)
     window.APP_CONFIG = {
       LIFF_ID: "2008883123-zMHF8DkH",
       DATA_URL: "data.json"
     };
   </script>
-  <script src="app.js?v=2026-01-13"></script>
+  <script src="app.js?v=2026-01-14-2"></script>
 </body>
 </html>
