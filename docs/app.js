@@ -48,7 +48,6 @@
   }
 
   // ---------- LIFF param helper ----------
-  // LINE: additional info in LIFF URL is passed in liff.state (urlencoded).
   function parseParam(name) {
     const u = new URL(window.location.href);
 
@@ -93,9 +92,9 @@
 
   // ---------- Theming ----------
   const THEMES = {
-    preop:  { accent: "#F97316", accentSoft: "rgba(249,115,22,.18)", accentGlow: "rgba(249,115,22,.22)" },
-    postop: { accent: "#3B82F6", accentSoft: "rgba(59,130,246,.18)", accentGlow: "rgba(59,130,246,.22)" },
-    home:   { accent: "#06C755", accentSoft: "rgba(6,199,85,.18)",  accentGlow: "rgba(6,199,85,.22)" }
+    preop:  { accent: "#F97316", accentSoft: "rgba(249,115,22,.18)", accentGlow: "rgba(249,115,22,.26)" },
+    postop: { accent: "#3B82F6", accentSoft: "rgba(59,130,246,.18)", accentGlow: "rgba(59,130,246,.26)" },
+    home:   { accent: "#06C755", accentSoft: "rgba(6,199,85,.18)",  accentGlow: "rgba(6,199,85,.26)" }
   };
 
   function applyTheme(topicKey) {
@@ -124,6 +123,12 @@
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
+  // Remove "คลิปที่ 5.2 " prefix (user request)
+  function cleanTitle(title) {
+    const t = String(title || "");
+    return t.replace(/^\s*คลิปที่\s*\d+(?:\.\d+)?\s*/i, "").trim();
+  }
+
   function setStatus(text) {
     const box = $("statusBox");
     if (!box) return;
@@ -134,35 +139,6 @@
     }
     box.classList.remove("hidden");
     box.textContent = text;
-  }
-
-  function buildBadges(video, watchedSet) {
-    const out = [];
-    if (video.mustWatch) out.push('<span class="badge badge--must">ต้องดู</span>');
-    if (watchedSet.has(video.id)) out.push('<span class="badge badge--watched">ดูแล้ว</span>');
-    if (video.badge) out.push('<span class="badge">' + escapeHtml(video.badge) + "</span>");
-    return out.join("");
-  }
-
-  // ---------- Skeleton ----------
-  function renderSkeleton() {
-    const list = $("videoList");
-    if (!list) return;
-    list.innerHTML = "";
-
-    for (let i = 0; i < 6; i++) {
-      const card = document.createElement("div");
-      card.className = "card skel";
-      card.innerHTML = `
-        <div class="step"></div>
-        <div class="cardBody">
-          <div class="skelBar large"></div>
-          <div class="skelBar medium"></div>
-          <div class="skelBar small"></div>
-        </div>
-      `;
-      list.appendChild(card);
-    }
   }
 
   function calcProgress(topicKey) {
@@ -192,26 +168,6 @@
     return topicVideos[0];
   }
 
-  function pickNextVideo(videos, watchedSet, lastId) {
-    if (!videos || videos.length === 0) return null;
-
-    // Prefer: after last watched/opened, pick next not-watched.
-    if (lastId) {
-      const idx = videos.findIndex(v => v.id === lastId);
-      if (idx >= 0) {
-        for (let i = idx + 1; i < videos.length; i++) {
-          if (!watchedSet.has(videos[i].id)) return videos[i];
-        }
-      }
-    }
-    // Fallback: first not-watched.
-    const firstUnwatched = videos.find(v => !watchedSet.has(v.id));
-    if (firstUnwatched) return firstUnwatched;
-
-    // All watched → allow review from first.
-    return videos[0];
-  }
-
   // ---------- Render ----------
   function renderHero() {
     const cats = getCategories();
@@ -223,8 +179,14 @@
       topicPill.textContent = emoji + (topicObj?.label || state.topic || "หัวข้อ");
     }
 
+    const heroBgIcon = $("heroBgIcon");
+    if (heroBgIcon) heroBgIcon.textContent = topicObj?.emoji || "🎬";
+
     const subtitle = $("subtitle");
     if (subtitle) subtitle.textContent = "หัวข้อ: " + (topicObj?.label || state.topic || "");
+
+    const topicHint = $("topicHint");
+    if (topicHint) topicHint.textContent = ""; // keep clean (user request)
 
     const info = calcProgress(state.topic);
 
@@ -235,68 +197,29 @@
     if (ring) ring.style.background = `conic-gradient(var(--accent) 0deg ${deg}deg, var(--ringTrack) ${deg}deg 360deg)`;
     if (ringValue) ringValue.textContent = info.percent + "%";
 
-    // stats
-    const statWatched = $("statWatched");
-    const statRemain = $("statRemain");
-    const statMust = $("statMust");
+    // progress text
+    const progressText = $("progressText");
+    const remain = Math.max(0, info.total - info.watched);
+    if (progressText) progressText.textContent = `ดูแล้ว ${info.watched}/${info.total} (เหลือ ${remain})`;
 
-    if (statWatched) statWatched.textContent = String(info.watched);
-    if (statRemain) statRemain.textContent = String(Math.max(0, info.total - info.watched));
-    if (statMust) statMust.textContent = info.mustTotal ? `${info.mustWatched}/${info.mustTotal}` : "—";
+    // pills
+    $("pillWatchedVal") && ($("pillWatchedVal").textContent = String(info.watched));
+    $("pillRemainVal") && ($("pillRemainVal").textContent = String(remain));
+    $("pillMustVal") && ($("pillMustVal").textContent = info.mustTotal ? `${info.mustWatched}/${info.mustTotal}` : "—");
 
-    // Next card + dots
+    // bar
+    const bar = $("progressBar");
+    const fill = $("progressFill");
+    if (bar) bar.setAttribute("aria-valuenow", String(info.percent));
+    if (fill) fill.style.width = info.percent + "%";
+
+    // actions
     const videos = getTopicVideos(state.topic);
     const p = loadProgress();
     const lastId = (p.lastByTopic && state.topic) ? p.lastByTopic[state.topic] : null;
 
-    const next = pickNextVideo(videos, info.watchedSet, lastId);
-    const nextCard = $("nextCard");
-    const nextLabel = $("nextLabel");
-    const nextTitle = $("nextTitle");
-    const nextMeta = $("nextMeta");
-
-    if (nextCard) {
-      if (!next) {
-        nextCard.disabled = true;
-        nextCard.onclick = null;
-      } else {
-        const idx = videos.findIndex(v => v.id === next.id);
-        const allWatched = (info.total > 0 && info.watched === info.total);
-        const watchedThis = info.watchedSet.has(next.id);
-
-        if (nextLabel) nextLabel.textContent = allWatched ? "ทบทวน" : "ถัดไป";
-        if (nextTitle) nextTitle.textContent = allWatched ? (videos[0]?.title || "—") : next.title;
-
-        let meta = "";
-        if (idx >= 0 && videos.length) meta += `ขั้น ${idx + 1}/${videos.length}`;
-        if (!allWatched) meta += ` • ${watchedThis ? "ดูแล้ว" : "ยังไม่ดู"}`;
-        if (next.mustWatch) meta += " • ต้องดู";
-        if (nextMeta) nextMeta.textContent = meta || "—";
-
-        nextCard.onclick = () => openVideo(allWatched ? videos[0].id : next.id);
-      }
-    }
-
-    // step dots
-    const dotTrack = $("stepDots");
-    if (dotTrack) {
-      dotTrack.innerHTML = "";
-      videos.forEach((v, idx) => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "dot"
-          + (info.watchedSet.has(v.id) ? " is-watched" : "")
-          + (next && v.id === next.id && !info.watchedSet.has(v.id) ? " is-next" : "")
-          + (v.mustWatch ? " is-must" : "");
-        b.title = v.title;
-        b.setAttribute("aria-label", `ขั้น ${idx + 1}: ${v.title}`);
-        b.onclick = () => openVideo(v.id);
-        dotTrack.appendChild(b);
-      });
-    }
-
-    // actions
     const startVideo = pickStartVideo(videos);
+
     const btnStart = $("btnStart");
     const btnContinue = $("btnContinue");
 
@@ -341,16 +264,16 @@
       card.className = "card" + (watched ? " is-watched" : "");
       card.setAttribute("data-open", v.id);
 
+      const title = cleanTitle(v.title);
+
       card.innerHTML = `
         <div class="step">${idx + 1}</div>
         <div class="cardBody">
-          <div class="cardTop">
-            <div class="cardTitle">${escapeHtml(v.title)}</div>
-            <div class="badges">${buildBadges(v, watchedSet)}</div>
-          </div>
+          <div class="cardTitle">${escapeHtml(title)}</div>
           ${v.note ? `<div class="cardNote">${escapeHtml(v.note)}</div>` : ""}
-          <div class="playRow">
-            <div class="playBtn" role="button" aria-label="ดูคลิป"><b>▶</b> ดูคลิป</div>
+          <div class="playBtn" role="button" aria-label="ดูคลิป">
+            <span class="tri">▶</span>
+            <span>ดูคลิป</span>
           </div>
         </div>
       `;
@@ -407,7 +330,7 @@
     updateUrlParams({ topic: state.topic, v: v.id });
 
     const titleEl = $("videoTitle");
-    if (titleEl) titleEl.textContent = v.title;
+    if (titleEl) titleEl.textContent = cleanTitle(v.title);
 
     const idx = vids.findIndex(x => x.id === v.id);
     const total = vids.length;
@@ -446,7 +369,6 @@
       btnNext.onclick = () => { if (next) openVideo(next.id); };
     }
 
-    // fullscreen button (single bottom)
     const openFull = $("btnOpenFull");
     if (openFull) openFull.href = drivePreviewFull(v.driveId);
 
@@ -548,6 +470,27 @@
     setStatus("");
 
     if (vParam) openVideo(vParam);
+  }
+
+  // skeleton from v3
+  function renderSkeleton() {
+    const list = $("videoList");
+    if (!list) return;
+    list.innerHTML = "";
+
+    for (let i = 0; i < 6; i++) {
+      const card = document.createElement("div");
+      card.className = "card skel";
+      card.innerHTML = `
+        <div class="step"></div>
+        <div class="cardBody">
+          <div class="skelBar large"></div>
+          <div class="skelBar medium"></div>
+          <div class="skelBar small"></div>
+        </div>
+      `;
+      list.appendChild(card);
+    }
   }
 
   main();
