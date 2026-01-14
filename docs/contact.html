@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#06C755" />
+  <title>ติดต่อพยาบาล</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --card:rgba(255,255,255,.08);
+      --border:rgba(255,255,255,.14);
+      --text:#E5E7EB;
+      --muted:rgba(229,231,235,.70);
+      --accent:#06C755;
+      --glow:rgba(6,199,85,.25);
+      --r:20px;
+    }
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Thai",Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(900px 500px at 20% -10%, rgba(6,199,85,.22), transparent 60%),
+        radial-gradient(800px 460px at 110% 0%, rgba(59,130,246,.12), transparent 60%),
+        var(--bg);
+      padding:16px;
+      padding-top:calc(16px + env(safe-area-inset-top));
+      padding-bottom:calc(16px + env(safe-area-inset-bottom));
+    }
+    .wrap{ max-width:520px; margin:0 auto; }
+    .hero{
+      border-radius:26px;
+      border:1px solid transparent;
+      background:
+        linear-gradient(rgba(255,255,255,.10), rgba(255,255,255,.06)) padding-box,
+        linear-gradient(135deg, rgba(255,255,255,.25), var(--accent), rgba(255,255,255,.12)) border-box;
+      box-shadow:0 22px 70px rgba(0,0,0,.45), 0 22px 70px var(--glow);
+      padding:16px;
+      position:relative;
+      overflow:hidden;
+    }
+    .hero:before{
+      content:"";
+      position:absolute; inset:-60px;
+      background:
+        radial-gradient(420px 260px at 18% 20%, var(--glow), transparent 65%),
+        radial-gradient(520px 320px at 110% 30%, rgba(255,255,255,.08), transparent 60%);
+      filter:blur(18px);
+      opacity:.9;
+      pointer-events:none;
+    }
+    h1{
+      margin:0;
+      font-size:20px;
+      font-weight:950;
+      letter-spacing:-.2px;
+      position:relative;
+    }
+    .sub{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:13px;
+      position:relative;
+      line-height:1.4;
+    }
+    .grid{
+      margin-top:14px;
+      display:grid;
+      gap:12px;
+    }
+    .card{
+      position:relative;
+      border-radius:22px;
+      border:1px solid var(--border);
+      background:var(--card);
+      padding:14px;
+      overflow:hidden;
+    }
+    .label{
+      font-weight:950;
+      font-size:15px;
+      margin:0 0 6px 0;
+    }
+    .desc{
+      margin:0 0 12px 0;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.4;
+    }
+    .btn{
+      width:100%;
+      min-height:52px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.18);
+      background:linear-gradient(135deg, rgba(6,199,85,.95), rgba(6,199,85,.72));
+      box-shadow:0 14px 36px var(--glow);
+      color:#fff;
+      font-weight:950;
+      font-size:16px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      text-decoration:none;
+      user-select:none;
+    }
+    .btn:active{ transform:translateY(1px); }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.18);
+      border-radius:999px;
+      padding:8px 12px;
+      font-weight:900;
+      font-size:13px;
+      margin-top:12px;
+    }
+    .note{
+      margin-top:12px;
+      border:1px solid rgba(255,140,0,.35);
+      background:rgba(255,140,0,.10);
+      border-radius:16px;
+      padding:10px 12px;
+      color:rgba(255,255,255,.92);
+      font-size:13px;
+      line-height:1.45;
+    }
+    .small{ font-size:12px; color:var(--muted); margin-top:10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1>ติดต่อพยาบาล</h1>
+      <div class="sub">เลือกเบอร์ที่ต้องการโทร (กดปุ่มด้านล่าง)</div>
+
+      <div class="grid">
+        <!-- เบอร์ที่ 1 -->
+        <div class="card">
+          <div class="label">พยาบาลประสานงาน (คุณ…/ทีม…)</div>
+          <p class="desc">สอบถามการดูแลหลังผ่าตัด / อาการทั่วไป</p>
+          <a class="btn" href="tel:0955983350">📞 โทร 095-598-3350</a>
+        </div>
+
+        <!-- เบอร์ที่ 2 -->
+        <div class="card">
+          <div class="label">วอร์ดศัลยกรรม / ห้องพยาบาล</div>
+          <p class="desc">กรณีต้องการติดต่อวอร์ดโดยตรง</p>
+          <a class="btn" href="tel:0XXXXXXXXX">📞 โทร 0X-XXX-XXXX</a>
+        </div>
+
+        <!-- เบอร์ที่ 3 -->
+        <div class="card">
+          <div class="label">นัดหมาย / OPD / ติดตามอาการ</div>
+          <p class="desc">เรื่องใบนัด / เปลี่ยนวันนัด / เอกสาร</p>
+          <a class="btn" href="tel:0YYYYYYYYY">📞 โทร 0Y-YYY-YYYY</a>
+        </div>
+      </div>
+
+      <div class="note">
+        <b>ขอความร่วมมือ:</b> เบอร์นี้ใช้สำหรับผู้ป่วยในโปรแกรมดูแลเท่านั้น<br/>
+        กรุณาไม่ส่งต่อ/ไม่แชร์ให้บุคคลอื่น
+      </div>
+
+      <div class="small">
+        * ถ้าต้องการใส่เบอร์ต่างประเทศ แนะนำรูปแบบ <b>tel:+66...</b> (มาตรฐาน tel URI).
+      </div>
+    </div>
+  </div>
+</body>
+</html>
