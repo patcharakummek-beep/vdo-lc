@@ -7,11 +7,15 @@
   const state = {
     data: null,
     topic: null,
-    currentVideoId: null
+    currentVideoId: null,
+    lastPercentByTopic: {}
   };
 
+  const prefersReducedMotion = () =>
+    !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
   // ---------- Safe storage ----------
-  // getItem คืน null ได้ถ้ายังไม่มี key (ปกติ) → ต้องกันไว้ไม่ให้หน้าพัง
+  // Storage.getItem() returns null when key doesn't exist (normal) → guard it.
   function safeJsonParse(s, fallback) {
     try {
       if (s === null || s === undefined || s === "") return fallback;
@@ -37,7 +41,7 @@
   }
 
   // ---------- LIFF param helper ----------
-  // ใน LIFF: additional info อาจมาใน liff.state (urlencoded) เลยต้อง decode แล้วดึง query ออก
+  // LINE doc: additional info in LIFF URL goes into liff.state (urlencoded).
   function parseParam(name) {
     const u = new URL(window.location.href);
 
@@ -50,7 +54,6 @@
     let decoded = liffStateEnc;
     try { decoded = decodeURIComponent(liffStateEnc); } catch (e) {}
 
-    // decoded อาจเป็น "path_A/?topic=home&v=home-01#fragment"
     const qIndex = decoded.indexOf("?");
     const qs = (qIndex >= 0) ? decoded.slice(qIndex + 1) : decoded;
     const qsNoFrag = qs.split("#")[0];
@@ -81,6 +84,24 @@
       .sort((a, b) => (a.order || 999) - (b.order || 999));
   }
 
+  // ---------- Theming ----------
+  const THEMES = {
+    preop:  { accent: "#F97316", accentSoft: "rgba(249,115,22,.18)", accentGlow: "rgba(249,115,22,.22)" },
+    postop: { accent: "#3B82F6", accentSoft: "rgba(59,130,246,.18)", accentGlow: "rgba(59,130,246,.22)" },
+    home:   { accent: "#06C755", accentSoft: "rgba(6,199,85,.18)",  accentGlow: "rgba(6,199,85,.25)" }
+  };
+
+  function applyTheme(topicKey) {
+    const t = THEMES[topicKey] || THEMES.home;
+    const root = document.documentElement;
+    root.style.setProperty("--accent", t.accent);
+    root.style.setProperty("--accentSoft", t.accentSoft);
+    root.style.setProperty("--accentGlow", t.accentGlow);
+
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", t.accent);
+  }
+
   // ---------- Drive URLs ----------
   function drivePreview(driveId) {
     return "https://drive.google.com/file/d/" + encodeURIComponent(driveId) + "/preview";
@@ -89,6 +110,7 @@
     return "https://drive.google.com/file/d/" + encodeURIComponent(driveId) + "/view";
   }
 
+  // ---------- UI helpers ----------
   function escapeHtml(s) {
     return String(s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -107,6 +129,52 @@
     box.textContent = text;
   }
 
+  let toastTimer = null;
+  function toast(msg) {
+    const el = $("toast");
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove("hidden");
+    el.classList.add("is-show");
+
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.classList.remove("is-show");
+      // keep DOM to avoid layout shift
+      setTimeout(() => el.classList.add("hidden"), 180);
+    }, 1400);
+  }
+
+  function celebrate() {
+    if (prefersReducedMotion()) {
+      toast("🎉 ครบแล้ว! ดูครบทุกคลิปในหัวข้อนี้");
+      return;
+    }
+
+    toast("🎉 ครบแล้ว! ดูครบทุกคลิปในหัวข้อนี้");
+
+    const wrap = $("confetti");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+
+    const pieces = 34;
+    for (let i = 0; i < pieces; i++) {
+      const p = document.createElement("div");
+      p.className = "confettiPiece";
+      const left = Math.random() * 100;
+      const delay = Math.random() * 0.15;
+      const hue = Math.floor(Math.random() * 360);
+
+      p.style.left = left + "vw";
+      p.style.animationDelay = delay + "s";
+      p.style.setProperty("--hue", hue);
+
+      wrap.appendChild(p);
+    }
+
+    setTimeout(() => { wrap.innerHTML = ""; }, 1600);
+  }
+
   function buildBadges(video, watchedSet) {
     const out = [];
     if (video.mustWatch) out.push('<span class="badge badge--must">ต้องดู</span>');
@@ -115,11 +183,12 @@
     return out.join("");
   }
 
-  // ---------- WOW UI render ----------
+  // ---------- Render skeleton ----------
   function renderSkeleton() {
     const list = $("videoList");
     if (!list) return;
     list.innerHTML = "";
+
     for (let i = 0; i < 6; i++) {
       const card = document.createElement("div");
       card.className = "card skel";
@@ -135,7 +204,37 @@
     }
   }
 
-  function renderTabsAndSummary() {
+  // ---------- Progress calculation ----------
+  function calcProgress(topicKey) {
+    const vids = getTopicVideos(topicKey);
+    const total = vids.length;
+
+    const progress = loadProgress();
+    const watchedSet = new Set(Array.isArray(progress.watched) ? progress.watched : []);
+
+    const watched = vids.filter(v => watchedSet.has(v.id)).length;
+    const percent = total ? Math.round((watched / total) * 100) : 0;
+
+    const mustTotal = vids.filter(v => v.mustWatch).length;
+    const mustWatched = vids.filter(v => v.mustWatch && watchedSet.has(v.id)).length;
+
+    return { total, watched, percent, mustTotal, mustWatched };
+  }
+
+  function pickStartVideo(topicVideos) {
+    if (!topicVideos || topicVideos.length === 0) return null;
+
+    const byBadge = topicVideos.find(v => String(v.badge || "").includes("เริ่มที่นี่"));
+    if (byBadge) return byBadge;
+
+    const byMust = topicVideos.find(v => v.mustWatch);
+    if (byMust) return byMust;
+
+    return topicVideos[0];
+  }
+
+  // ---------- Tabs + Hero ----------
+  function renderTabsAndHero() {
     const cats = getCategories();
     const progress = loadProgress();
     const watchedSet = new Set(Array.isArray(progress.watched) ? progress.watched : []);
@@ -145,23 +244,21 @@
     if (tabs) {
       tabs.innerHTML = "";
       cats.forEach((c) => {
-        const vids = getTopicVideos(c.key);
-        const total = vids.length;
-        const watched = vids.filter(v => watchedSet.has(v.id)).length;
-
+        const info = calcProgress(c.key);
         const btn = document.createElement("button");
-        btn.className = "tab" + (c.key === state.topic ? " is-active" : "");
+        btn.className = "segTab" + (c.key === state.topic ? " is-active" : "");
         btn.setAttribute("role", "tab");
         btn.setAttribute("aria-selected", c.key === state.topic ? "true" : "false");
         btn.innerHTML = `
-          <span class="tab__left">
-            <span class="tab__emoji">${escapeHtml(c.emoji || "")}</span>
-            <span class="tab__label">${escapeHtml(c.label)}</span>
+          <span class="segTab__left">
+            <span class="segTab__emoji">${escapeHtml(c.emoji || "")}</span>
+            <span class="segTab__label">${escapeHtml(c.label)}</span>
           </span>
-          <span class="tab__count">${watched}/${total}</span>
+          <span class="segTab__pill">${info.watched}/${info.total}</span>
         `;
         btn.onclick = () => {
           state.topic = c.key;
+          applyTheme(state.topic);
           closeVideo();
           updateUrlParams({ topic: state.topic, v: null });
           renderAll();
@@ -170,78 +267,76 @@
       });
     }
 
-    // summary + ring
+    // ring + hero text
     const topicObj = cats.find(x => x.key === state.topic) || cats[0] || null;
-    const topicVideos = topicObj ? getTopicVideos(topicObj.key) : [];
-    const total = topicVideos.length;
-    const watched = topicVideos.filter(v => watchedSet.has(v.id)).length;
-    const percent = total ? Math.round((watched / total) * 100) : 0;
-    const deg = Math.round((percent / 100) * 360);
+    const topicKey = topicObj ? topicObj.key : state.topic;
+
+    const info = calcProgress(topicKey);
 
     const ring = $("progressRing");
-    if (ring) {
-      ring.style.background = `conic-gradient(var(--accent) 0deg ${deg}deg, var(--ringTrack) ${deg}deg 360deg)`;
-    }
     const ringValue = $("ringValue");
-    if (ringValue) ringValue.textContent = percent + "%";
+    const ringCaption = $("ringCaption");
+
+    const deg = Math.round((info.percent / 100) * 360);
+    if (ring) ring.style.background = `conic-gradient(var(--accent) 0deg ${deg}deg, var(--ringTrack) ${deg}deg 360deg)`;
+    if (ringValue) ringValue.textContent = info.percent + "%";
+    if (ringCaption) ringCaption.textContent = info.total ? "complete" : "empty";
+
+    const subtitle = $("subtitle");
+    if (subtitle) subtitle.textContent = "หัวข้อ: " + (topicObj ? topicObj.label : (topicKey || ""));
 
     const progressText = $("progressText");
-    if (progressText) progressText.textContent = `ดูแล้ว ${watched}/${total} คลิป`;
+    if (progressText) {
+      const remain = Math.max(0, info.total - info.watched);
+      const mustLine = info.mustTotal ? ` • ต้องดู ${info.mustWatched}/${info.mustTotal}` : "";
+      progressText.textContent = `ดูแล้ว ${info.watched}/${info.total} คลิป (เหลือ ${remain})${mustLine}`;
+    }
 
     const hint = $("progressHint");
     if (hint) hint.textContent = (topicObj && topicObj.tip) ? topicObj.tip : "เลือกหัวข้อ แล้วกดดูคลิปตามลำดับ";
 
-    // buttons start/continue
+    const tip = $("tipBox");
+    if (tip) tip.textContent = (topicObj && topicObj.tip) ? topicObj.tip : "";
+
+    const topicVideos = getTopicVideos(topicKey);
+    const startVideo = pickStartVideo(topicVideos);
+    const lastId = (progress.lastByTopic && topicKey) ? progress.lastByTopic[topicKey] : null;
+
     const btnStart = $("btnStart");
     const btnContinue = $("btnContinue");
 
-    const startVideo = pickStartVideo(topicVideos);
-    const lastId = (progress.lastByTopic && state.topic) ? progress.lastByTopic[state.topic] : null;
-
     if (btnStart) {
-      btnStart.onclick = () => {
-        if (!startVideo) return;
-        openVideo(startVideo.id);
-      };
+      btnStart.disabled = !startVideo;
+      btnStart.onclick = () => { if (startVideo) openVideo(startVideo.id); };
     }
     if (btnContinue) {
+      btnContinue.disabled = !startVideo && !lastId;
       btnContinue.onclick = () => {
         if (lastId) openVideo(lastId);
         else if (startVideo) openVideo(startVideo.id);
         else setStatus("ยังไม่มีคลิปในหัวข้อนี้");
       };
     }
+
+    // completion celebration trigger
+    const prevPercent = state.lastPercentByTopic[topicKey];
+    state.lastPercentByTopic[topicKey] = info.percent;
+
+    if (prevPercent !== undefined && prevPercent < 100 && info.percent === 100 && info.total > 0) {
+      celebrate();
+    }
   }
 
-  function pickStartVideo(topicVideos) {
-    if (!topicVideos || topicVideos.length === 0) return null;
-
-    // 1) badge = เริ่มที่นี่
-    const byBadge = topicVideos.find(v => String(v.badge || "").includes("เริ่มที่นี่"));
-    if (byBadge) return byBadge;
-
-    // 2) mustWatch ตัวแรก
-    const byMust = topicVideos.find(v => v.mustWatch);
-    if (byMust) return byMust;
-
-    // 3) ตัวแรกตาม order
-    return topicVideos[0];
-  }
-
+  // ---------- List render ----------
   function renderList() {
     const cats = getCategories();
     const topicObj = cats.find(x => x.key === state.topic) || cats[0] || null;
-
-    const subtitle = $("subtitle");
-    if (subtitle) subtitle.textContent = "หัวข้อ: " + (topicObj ? topicObj.label : (state.topic || ""));
-
-    const tipBox = $("tipBox");
-    if (tipBox) tipBox.textContent = (topicObj && topicObj.tip) ? topicObj.tip : "";
+    const topicKey = topicObj ? topicObj.key : state.topic;
 
     const progress = loadProgress();
     const watchedSet = new Set(Array.isArray(progress.watched) ? progress.watched : []);
 
-    const videos = topicObj ? getTopicVideos(topicObj.key) : [];
+    const videos = getTopicVideos(topicKey);
 
     const count = $("countLabel");
     if (count) count.textContent = videos.length + " คลิป";
@@ -257,11 +352,14 @@
     }
     setStatus("");
 
+    const startVideo = pickStartVideo(videos);
+
     videos.forEach((v, idx) => {
       const watched = watchedSet.has(v.id);
+      const featured = startVideo && startVideo.id === v.id;
 
       const card = document.createElement("div");
-      card.className = "card" + (watched ? " is-watched" : "");
+      card.className = "card" + (watched ? " is-watched" : "") + (featured ? " is-featured" : "");
       card.setAttribute("data-open", v.id);
 
       card.innerHTML = `
@@ -278,15 +376,13 @@
         </div>
       `;
 
-      // คลิกทั้งการ์ดเปิดคลิป
       card.onclick = () => openVideo(v.id);
-
       list.appendChild(card);
     });
   }
 
   function renderAll() {
-    renderTabsAndSummary();
+    renderTabsAndHero();
     renderList();
   }
 
@@ -316,7 +412,6 @@
     if (metaEl) {
       const parts = [];
       if (idx >= 0 && total > 0) parts.push(`ขั้น ${idx + 1}/${total}`);
-      if (v.duration) parts.push(`⏱ ${v.duration}`);
       metaEl.textContent = parts.join(" • ");
     }
 
@@ -338,14 +433,24 @@
       btnToggle.onclick = () => {
         const pp = loadProgress();
         const w = new Set(Array.isArray(pp.watched) ? pp.watched : []);
-        if (w.has(v.id)) w.delete(v.id);
+        const wasWatched = w.has(v.id);
+
+        if (wasWatched) w.delete(v.id);
         else w.add(v.id);
+
         pp.watched = Array.from(w);
         pp.lastByTopic = pp.lastByTopic || {};
         pp.lastByTopic[state.topic] = v.id;
         saveProgress(pp);
 
         btnToggle.textContent = w.has(v.id) ? "ยกเลิกทำเครื่องหมายดูแล้ว" : "ทำเครื่องหมายดูแล้ว";
+        toast(w.has(v.id) ? "บันทึกว่า “ดูแล้ว” ✓" : "ยกเลิกเครื่องหมายแล้ว");
+
+        // tiny haptic on supported devices (safe)
+        if (!prefersReducedMotion() && navigator.vibrate) {
+          try { navigator.vibrate(10); } catch (e) {}
+        }
+
         renderAll();
       };
     }
@@ -380,7 +485,7 @@
     updateUrlParams({ v: null });
   }
 
-  // ---------- Help ----------
+  // ---------- Help modal ----------
   function openHelp() {
     const m = $("helpModal");
     if (m) m.classList.remove("hidden");
@@ -413,6 +518,22 @@
         if (e.target && e.target.id === "videoModal") closeVideo();
       });
     }
+
+    // keyboard (desktop)
+    document.addEventListener("keydown", (e) => {
+      const videoOpen = !$("videoModal")?.classList.contains("hidden");
+      const helpOpen = !$("helpModal")?.classList.contains("hidden");
+
+      if (e.key === "Escape") {
+        if (videoOpen) closeVideo();
+        if (helpOpen) closeHelp();
+      }
+
+      if (videoOpen && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        if (e.key === "ArrowLeft") $("btnPrev")?.click();
+        if (e.key === "ArrowRight") $("btnNext")?.click();
+      }
+    });
   }
 
   async function main() {
@@ -449,9 +570,16 @@
     const cats = getCategories();
     state.topic = parseParam("topic") || (cats[0] ? cats[0].key : "preop");
 
+    applyTheme(state.topic);
+
+    // init percent state (avoid celebration on first render)
+    const info = calcProgress(state.topic);
+    state.lastPercentByTopic[state.topic] = info.percent;
+
     renderAll();
     setStatus("");
 
+    // deep link open
     const vParam = parseParam("v");
     if (vParam) openVideo(vParam);
   }
