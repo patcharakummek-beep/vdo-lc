@@ -92,9 +92,9 @@
 
   // ---------- Theming ----------
   const THEMES = {
-    preop:  { accent: "#F97316", accentSoft: "rgba(249,115,22,.18)", accentGlow: "rgba(249,115,22,.26)" },
-    postop: { accent: "#3B82F6", accentSoft: "rgba(59,130,246,.18)", accentGlow: "rgba(59,130,246,.26)" },
-    home:   { accent: "#06C755", accentSoft: "rgba(6,199,85,.18)",  accentGlow: "rgba(6,199,85,.26)" }
+    preop:  { accent: "#F97316", accentSoft: "rgba(249,115,22,.18)", accentGlow: "rgba(249,115,22,.30)" },
+    postop: { accent: "#3B82F6", accentSoft: "rgba(59,130,246,.18)", accentGlow: "rgba(59,130,246,.30)" },
+    home:   { accent: "#06C755", accentSoft: "rgba(6,199,85,.18)",  accentGlow: "rgba(6,199,85,.30)" }
   };
 
   function applyTheme(topicKey) {
@@ -123,7 +123,7 @@
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
-  // Remove "คลิปที่ 5.2 " prefix (user request)
+  // Remove "คลิปที่ 5.2 " prefix
   function cleanTitle(title) {
     const t = String(title || "");
     return t.replace(/^\s*คลิปที่\s*\d+(?:\.\d+)?\s*/i, "").trim();
@@ -150,10 +150,8 @@
     const watched = vids.filter(v => watchedSet.has(v.id)).length;
 
     const percent = total ? Math.round((watched / total) * 100) : 0;
-    const mustTotal = vids.filter(v => v.mustWatch).length;
-    const mustWatched = vids.filter(v => v.mustWatch && watchedSet.has(v.id)).length;
 
-    return { total, watched, percent, mustTotal, mustWatched, watchedSet };
+    return { total, watched, percent, watchedSet };
   }
 
   function pickStartVideo(topicVideos) {
@@ -162,9 +160,7 @@
     const byBadge = topicVideos.find(v => String(v.badge || "").includes("เริ่มที่นี่"));
     if (byBadge) return byBadge;
 
-    const byMust = topicVideos.find(v => v.mustWatch);
-    if (byMust) return byMust;
-
+    // if no "เริ่มที่นี่" badge, pick first
     return topicVideos[0];
   }
 
@@ -173,20 +169,19 @@
     const cats = getCategories();
     const topicObj = cats.find(x => x.key === state.topic) || cats[0] || null;
 
-    const topicPill = $("topicPill");
-    if (topicPill) {
-      const emoji = topicObj?.emoji ? topicObj.emoji + " " : "";
-      topicPill.textContent = emoji + (topicObj?.label || state.topic || "หัวข้อ");
-    }
+    // topic chip
+    const topicEmoji = $("topicEmoji");
+    const topicLabel = $("topicLabel");
+    if (topicEmoji) topicEmoji.textContent = topicObj?.emoji || "🎬";
+    if (topicLabel) topicLabel.textContent = topicObj?.label || state.topic || "หัวข้อ";
 
+    // bg icon
     const heroBgIcon = $("heroBgIcon");
     if (heroBgIcon) heroBgIcon.textContent = topicObj?.emoji || "🎬";
 
+    // subtitle
     const subtitle = $("subtitle");
     if (subtitle) subtitle.textContent = "หัวข้อ: " + (topicObj?.label || state.topic || "");
-
-    const topicHint = $("topicHint");
-    if (topicHint) topicHint.textContent = ""; // keep clean (user request)
 
     const info = calcProgress(state.topic);
 
@@ -205,7 +200,6 @@
     // pills
     $("pillWatchedVal") && ($("pillWatchedVal").textContent = String(info.watched));
     $("pillRemainVal") && ($("pillRemainVal").textContent = String(remain));
-    $("pillMustVal") && ($("pillMustVal").textContent = info.mustTotal ? `${info.mustWatched}/${info.mustTotal}` : "—");
 
     // bar
     const bar = $("progressBar");
@@ -428,6 +422,27 @@
     });
   }
 
+  // skeleton
+  function renderSkeleton() {
+    const list = $("videoList");
+    if (!list) return;
+    list.innerHTML = "";
+
+    for (let i = 0; i < 6; i++) {
+      const card = document.createElement("div");
+      card.className = "card skel";
+      card.innerHTML = `
+        <div class="step"></div>
+        <div class="cardBody">
+          <div class="skelBar large"></div>
+          <div class="skelBar medium"></div>
+          <div class="skelBar small"></div>
+        </div>
+      `;
+      list.appendChild(card);
+    }
+  }
+
   async function main() {
     wireEvents();
     renderSkeleton();
@@ -470,27 +485,6 @@
     setStatus("");
 
     if (vParam) openVideo(vParam);
-  }
-
-  // skeleton from v3
-  function renderSkeleton() {
-    const list = $("videoList");
-    if (!list) return;
-    list.innerHTML = "";
-
-    for (let i = 0; i < 6; i++) {
-      const card = document.createElement("div");
-      card.className = "card skel";
-      card.innerHTML = `
-        <div class="step"></div>
-        <div class="cardBody">
-          <div class="skelBar large"></div>
-          <div class="skelBar medium"></div>
-          <div class="skelBar small"></div>
-        </div>
-      `;
-      list.appendChild(card);
-    }
   }
 
   main();
