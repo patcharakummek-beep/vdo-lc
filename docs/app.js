@@ -7,11 +7,13 @@
   const state = {
     data: null,
     topic: null,
-    currentVideoId: null
+    currentVideoId: null,
+    watchTimer: null,
+    openedAt: null
   };
 
   // ---------- Safe storage ----------
-  // Storage.getItem returns null if key doesn't exist (normal) → must guard.
+  // Storage.getItem returns null if key doesn't exist → must guard.
   function safeJsonParse(s, fallback) {
     try {
       if (s === null || s === undefined || s === "") return fallback;
@@ -34,6 +36,16 @@
   }
   function saveProgress(p) {
     storageSet("videoProgress", JSON.stringify(p));
+  }
+
+  function markWatched(videoId) {
+    const p = loadProgress();
+    const w = new Set(Array.isArray(p.watched) ? p.watched : []);
+    if (!w.has(videoId)) {
+      w.add(videoId);
+      p.watched = Array.from(w);
+      saveProgress(p);
+    }
   }
 
   // ---------- LIFF param helper ----------
@@ -102,8 +114,9 @@
   function drivePreview(driveId) {
     return "https://drive.google.com/file/d/" + encodeURIComponent(driveId) + "/preview";
   }
-  function driveView(driveId) {
-    return "https://drive.google.com/file/d/" + encodeURIComponent(driveId) + "/view";
+  function drivePreviewFull(driveId) {
+    // Use /preview as "fullscreen" to reduce Drive UI.
+    return drivePreview(driveId);
   }
 
   // ---------- UI helpers ----------
@@ -192,11 +205,6 @@
       topicPill.textContent = emoji + (topicObj?.label || state.topic || "หัวข้อ");
     }
 
-    const topicMeta = $("topicMeta");
-    if (topicMeta) {
-      topicMeta.textContent = "เปิดจาก Rich Menu • สลับหัวข้อให้กลับไปกดเมนู";
-    }
-
     const subtitle = $("subtitle");
     if (subtitle) subtitle.textContent = "หัวข้อ: " + (topicObj?.label || state.topic || "");
 
@@ -212,8 +220,13 @@
     const progressText = $("progressText");
     if (progressText) {
       const remain = Math.max(0, info.total - info.watched);
-      const mustLine = info.mustTotal ? ` • ต้องดู ${info.mustWatched}/${info.mustTotal}` : "";
-      progressText.textContent = `ดูแล้ว ${info.watched}/${info.total} (เหลือ ${remain})${mustLine}`;
+      progressText.textContent = `ดูแล้ว ${info.watched}/${info.total} (เหลือ ${remain})`;
+    }
+
+    const mustText = $("mustText");
+    if (mustText) {
+      if (info.mustTotal) mustText.textContent = `ต้องดู ${info.mustWatched}/${info.mustTotal}`;
+      else mustText.textContent = "";
     }
 
     const p = loadProgress();
@@ -291,6 +304,31 @@
   }
 
   // ---------- Video modal ----------
+  function setWatermark(text) {
+    const wm = $("watermark");
+    if (!wm) return;
+    wm.setAttribute("data-text", text || "CONFIDENTIAL • ห้ามส่งต่อ");
+  }
+
+  function clearWatchTimer() {
+    if (state.watchTimer) {
+      clearTimeout(state.watchTimer);
+      state.watchTimer = null;
+    }
+    state.openedAt = null;
+  }
+
+  function startAutoWatchMark(videoId) {
+    clearWatchTimer();
+    state.openedAt = Date.now();
+
+    // Auto-mark watched after user stays in video for 10 seconds.
+    state.watchTimer = setTimeout(() => {
+      markWatched(videoId);
+      renderAll();
+    }, 10000);
+  }
+
   function openVideo(videoId) {
     const vids = getTopicVideos(state.topic);
     const v = vids.find(x => x.id === videoId) || getAllVideos().find(x => x.id === videoId);
@@ -316,7 +354,6 @@
     if (metaEl) {
       const parts = [];
       if (idx >= 0 && total > 0) parts.push(`ขั้น ${idx + 1}/${total}`);
-      if (v.duration) parts.push(`⏱ ${v.duration}`);
       metaEl.textContent = parts.join(" • ");
     }
 
@@ -326,30 +363,12 @@
     const player = $("player");
     if (player) player.src = drivePreview(v.driveId);
 
-    const openDrive = $("btnOpenDrive");
-    if (openDrive) openDrive.href = driveView(v.driveId);
+    // watermark: show topic + (optional) LINE user id fragment if available
+    const topicLabel = (getCategories().find(c => c.key === state.topic)?.label) || state.topic || "";
+    setWatermark(`CONFIDENTIAL • ${topicLabel} • ห้ามส่งต่อ`);
 
-    // watched toggle
-    const btnToggle = $("btnToggleWatched");
-    if (btnToggle) {
-      const watchedSet = new Set((loadProgress().watched || []));
-      btnToggle.textContent = watchedSet.has(v.id) ? "ยกเลิกทำเครื่องหมายดูแล้ว" : "ทำเครื่องหมายดูแล้ว";
-
-      btnToggle.onclick = () => {
-        const pp = loadProgress();
-        const w = new Set(Array.isArray(pp.watched) ? pp.watched : []);
-        if (w.has(v.id)) w.delete(v.id);
-        else w.add(v.id);
-
-        pp.watched = Array.from(w);
-        pp.lastByTopic = pp.lastByTopic || {};
-        pp.lastByTopic[state.topic] = v.id;
-        saveProgress(pp);
-
-        btnToggle.textContent = w.has(v.id) ? "ยกเลิกทำเครื่องหมายดูแล้ว" : "ทำเครื่องหมายดูแล้ว";
-        renderAll();
-      };
-    }
+    // Auto mark watched (no button)
+    startAutoWatchMark(v.id);
 
     // prev/next
     const btnPrev = $("btnPrev");
@@ -367,11 +386,22 @@
       btnNext.onclick = () => { if (next) openVideo(next.id); };
     }
 
+    // fullscreen button (single bottom)
+    const openFull = $("btnOpenFull");
+    if (openFull) openFull.href = drivePreviewFull(v.driveId);
+
     const modal = $("videoModal");
     if (modal) modal.classList.remove("hidden");
   }
 
   function closeVideo() {
+    // If user kept video open long enough but timer hasn't fired (rare), mark on close.
+    if (state.currentVideoId && state.openedAt) {
+      const dt = Date.now() - state.openedAt;
+      if (dt >= 10000) markWatched(state.currentVideoId);
+    }
+    clearWatchTimer();
+
     const modal = $("videoModal");
     if (modal) modal.classList.add("hidden");
 
@@ -379,41 +409,27 @@
     if (player) player.src = "";
 
     updateUrlParams({ v: null });
+
+    renderAll();
   }
 
   // ---------- Help modal ----------
-  function openHelp() {
-    const m = $("helpModal");
-    if (m) m.classList.remove("hidden");
-  }
-  function closeHelp() {
-    const m = $("helpModal");
-    if (m) m.classList.add("hidden");
-  }
+  function openHelp() { $("helpModal")?.classList.remove("hidden"); }
+  function closeHelp() { $("helpModal")?.classList.add("hidden"); }
 
   function wireEvents() {
-    const btnHelp = $("btnHelp");
-    if (btnHelp) btnHelp.onclick = openHelp;
+    $("btnHelp")?.addEventListener("click", openHelp);
+    $("helpClose")?.addEventListener("click", closeHelp);
 
-    const helpClose = $("helpClose");
-    if (helpClose) helpClose.onclick = closeHelp;
+    $("helpModal")?.addEventListener("click", (e) => {
+      if (e.target && e.target.id === "helpModal") closeHelp();
+    });
 
-    const helpModal = $("helpModal");
-    if (helpModal) {
-      helpModal.addEventListener("click", (e) => {
-        if (e.target && e.target.id === "helpModal") closeHelp();
-      });
-    }
+    $("videoClose")?.addEventListener("click", closeVideo);
 
-    const videoClose = $("videoClose");
-    if (videoClose) videoClose.onclick = closeVideo;
-
-    const videoModal = $("videoModal");
-    if (videoModal) {
-      videoModal.addEventListener("click", (e) => {
-        if (e.target && e.target.id === "videoModal") closeVideo();
-      });
-    }
+    $("videoModal")?.addEventListener("click", (e) => {
+      if (e.target && e.target.id === "videoModal") closeVideo();
+    });
 
     // Keyboard (desktop)
     document.addEventListener("keydown", (e) => {
@@ -460,8 +476,7 @@
     const title = state.data.appTitle || "คลังคลิป";
     document.title = title;
 
-    const appTitle = $("appTitle");
-    if (appTitle) appTitle.textContent = title;
+    $("appTitle") && ($("appTitle").textContent = title);
 
     const cats = getCategories();
 
@@ -471,7 +486,7 @@
 
     applyTheme(state.topic);
 
-    // Deep link to specific video in the locked topic (optional)
+    // Deep link to specific video (optional)
     const vParam = parseParam("v");
 
     renderAll();
