@@ -30,7 +30,6 @@
       <div class="heroTop">
         <div class="topic">
           <div class="topic__pill" id="topicPill">หัวข้อ</div>
-          <div class="topic__meta" id="topicMeta"></div>
         </div>
 
         <div class="ring" id="progressRing" aria-label="ความคืบหน้า">
@@ -44,7 +43,7 @@
       <div class="heroBottom">
         <div class="heroStats">
           <div class="heroStats__main" id="progressText">ดูแล้ว 0/0 (เหลือ 0)</div>
-          <div class="heroStats__sub">หน้านี้ “ล็อกหัวข้อ” ตาม Rich Menu เพื่อป้องกันกดผิด</div>
+          <div class="heroStats__sub" id="mustText"></div>
         </div>
 
         <div class="heroActions">
@@ -70,21 +69,21 @@
   <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="วิธีใช้">
     <div class="modalCard">
       <div class="modalHeader">
-        <div class="modalTitle">วิธีใช้</div>
+        <div class="modalTitle">วิธีใช้ (อ่านแป๊บเดียว)</div>
         <button id="helpClose" class="helpBtn" type="button">ปิด</button>
       </div>
 
       <div class="modalBody">
         <ol class="helpList">
-          <li><b>หัวข้อจะถูกล็อก</b> ตามเมนูที่คุณกดใน Rich Menu (เพื่อไม่ให้สลับผิดหัวข้อ)</li>
-          <li>เลือกคลิปจาก “รายการคลิป” แล้วกด <b>ดูคลิป</b></li>
+          <li>เลือกหัวข้อจากเมนู A/B/C ใน LINE</li>
+          <li>กด <b>ดูคลิป</b> ที่การ์ดใน “รายการคลิป”</li>
+          <li>ในหน้าวิดีโอ กด <b>ก่อนหน้า / ถัดไป</b> เพื่อไล่ตามลำดับ</li>
           <li>กด <b>ดูต่อ</b> เพื่อกลับไปคลิปล่าสุดของหัวข้อนี้</li>
-          <li>ในหน้าวิดีโอ กด <b>ทำเครื่องหมายดูแล้ว</b> เพื่อให้ระบบจำในเครื่องนี้ (ถ้าเครื่องอนุญาต)</li>
-          <li>ถ้าต้องการเปลี่ยนหัวข้อ ให้ปิดหน้านี้แล้วกลับไปกด <b>Rich Menu</b> ใหม่</li>
         </ol>
 
-        <div class="note">
-          ถ้าคลิปเปิดไม่ได้ ให้เช็คว่าไฟล์ใน Google Drive ตั้งเป็น <b>Anyone with the link → Viewer</b>
+        <div class="note note--warn">
+          <b>สำคัญ:</b> วิดีโอนี้ใช้เพื่อการดูแลผู้ป่วยเท่านั้น <br/>
+          <b>ห้ามส่งต่อ / ห้ามแชร์ลิงก์ / ห้ามบันทึกหน้าจอ</b>
         </div>
       </div>
     </div>
@@ -104,16 +103,20 @@
       <div class="modalBody">
         <div class="ratio16x9">
           <iframe id="player" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+          <div id="watermark" class="watermark" aria-hidden="true"></div>
         </div>
 
         <div id="videoNote" class="videoNote"></div>
 
         <div class="modalFooter">
-          <button id="btnPrev" class="btn btn--ghost" type="button">ก่อนหน้า</button>
-          <button id="btnToggleWatched" class="btn btn--primary" type="button">ทำเครื่องหมายดูแล้ว</button>
-          <button id="btnNext" class="btn btn--ghost" type="button">ถัดไป</button>
+          <div class="navRow">
+            <button id="btnPrev" class="btn btn--ghost" type="button">ก่อนหน้า</button>
+            <button id="btnNext" class="btn btn--ghost" type="button">ถัดไป</button>
+          </div>
 
-          <a id="btnOpenDrive" class="link" href="#" target="_blank" rel="noopener">เปิดเต็มจอ (Drive)</a>
+          <a id="btnOpenFull" class="btn btn--primary btn--full" href="#" target="_blank" rel="noopener">
+            เปิดเต็มจอ
+          </a>
         </div>
       </div>
     </div>
@@ -125,6 +128,6 @@
       DATA_URL: "data.json"
     };
   </script>
-  <script src="app.js?v=locktopic-2026-01-14-1"></script>
+  <script src="app.js?v=locktopic-2026-01-14-2"></script>
 </body>
 </html>
