@@ -12,10 +12,11 @@
       --text:#0B1220;
       --muted:#334155;
 
-      /* ใช้สีเขียวเป็น “กรอบ/ไอคอน” แทนการทำพื้นหลังเขียวเข้ม
-         เพื่อให้ตัวอักษรอ่านง่าย (คอนทราสต์สูง) */
       --accent:#06C755;
       --accentBg:#E9F8EF;
+
+      --danger:#DC2626;
+      --dangerBg:#FEE2E2;
 
       --border:rgba(15,23,42,.12);
       --shadow:0 10px 26px rgba(15,23,42,.10);
@@ -30,7 +31,9 @@
         --muted:rgba(229,231,235,.75);
         --border:rgba(229,231,235,.14);
         --shadow:0 18px 60px rgba(0,0,0,.55);
+
         --accentBg:rgba(6,199,85,.18);
+        --dangerBg:rgba(220,38,38,.18);
       }
     }
 
@@ -41,7 +44,7 @@
       background:var(--bg);
       color:var(--text);
 
-      /* “ตัวหนังสือใหญ่ตั้งแต่แรก” สำหรับผู้สูงอายุ */
+      /* ผู้สูงอายุ: ตั้งตัวใหญ่ตั้งแต่แรก */
       font-size:20px;
       line-height:1.5;
 
@@ -50,10 +53,7 @@
       padding-bottom:calc(20px + env(safe-area-inset-bottom));
     }
 
-    .wrap{
-      max-width:520px;
-      margin:0 auto;
-    }
+    .wrap{ max-width:560px; margin:0 auto; }
 
     .panel{
       background:var(--card);
@@ -77,31 +77,45 @@
       font-size:16px;
     }
 
-    .list{
-      display:grid;
-      gap:14px;
+    .sectionTitle{
+      margin:14px 0 10px;
+      font-weight:950;
+      font-size:18px;
+      letter-spacing:-.2px;
     }
 
-    /* ปุ่มโทรแบบ “แถวใหญ่” กดง่าย */
+    .list{ display:grid; gap:12px; }
+
+    /* ปุ่มโทร: แถวใหญ่ กดง่าย */
     .call{
       display:flex;
       align-items:center;
       gap:14px;
       text-decoration:none;
       color:var(--text);
-
-      background:var(--accentBg);
-      border:2px solid var(--accent);
       border-radius:20px;
 
-      padding:16px 16px;
-      min-height:72px; /* ใหญ่พอสำหรับนิ้วโป้ง */
+      padding:16px;
+      min-height:78px; /* ใหญ่ขึ้นอีกนิด ให้กดง่าย */
       box-shadow:0 10px 24px rgba(0,0,0,.06);
+      touch-action: manipulation;
+    }
+
+    /* แบบปกติ (โรงพยาบาล) */
+    .call--ok{
+      background:var(--accentBg);
+      border:2px solid var(--accent);
+    }
+
+    /* แบบฉุกเฉิน */
+    .call--danger{
+      background:var(--dangerBg);
+      border:2px solid var(--danger);
     }
 
     .idx{
-      width:44px;
-      height:44px;
+      width:46px;
+      height:46px;
       border-radius:16px;
       display:flex;
       align-items:center;
@@ -112,28 +126,28 @@
       flex:0 0 auto;
     }
 
-    .txt{
-      flex:1 1 auto;
-      min-width:0;
-    }
-
+    .txt{ flex:1 1 auto; min-width:0; }
     .name{
       font-weight:950;
       font-size:18px;
       line-height:1.2;
       margin:0 0 4px 0;
     }
-
     .num{
       font-weight:950;
-      font-size:24px; /* “เลขโทร” ต้องเด่นสุด */
+      font-size:26px; /* เลขโทรเด่นสุด */
       letter-spacing:.3px;
       margin:0;
     }
+    .sub{
+      margin-top:4px;
+      font-size:14px;
+      color:var(--muted);
+    }
 
     .icon{
-      width:44px;
-      height:44px;
+      width:46px;
+      height:46px;
       border-radius:16px;
       display:flex;
       align-items:center;
@@ -145,23 +159,24 @@
     }
 
     .call:active{ transform: translateY(1px); }
-
-    /* โฟกัสสำหรับคนใช้คีย์บอร์ด/Assistive */
     .call:focus-visible{
       outline: 4px solid rgba(6,199,85,.35);
       outline-offset: 3px;
     }
+    .call--danger:focus-visible{
+      outline-color: rgba(220,38,38,.35);
+    }
 
     .note{
       margin-top:14px;
-      padding:12px 12px;
+      padding:12px;
       border-radius:16px;
       border:1px solid var(--border);
       background:rgba(0,0,0,.02);
       color:var(--muted);
       font-size:15px;
+      line-height:1.45;
     }
-
     .note b{ color:var(--text); }
   </style>
 </head>
@@ -172,10 +187,23 @@
       <h1>ติดต่อพยาบาล</h1>
       <div class="hint">แตะปุ่มที่ต้องการโทร (กดครั้งเดียวโทรได้เลย)</div>
 
+      <div class="sectionTitle">กรณีฉุกเฉิน</div>
+      <!-- ✅ 1669 = ฉุกเฉินการแพทย์/รถพยาบาล -->
+      <a class="call call--danger" href="tel:1669" aria-label="โทรฉุกเฉินการแพทย์ 1669">
+        <div class="idx">SOS</div>
+        <div class="txt">
+          <div class="name">โทรฉุกเฉิน (รถพยาบาล)</div>
+          <div class="num">1669</div>
+          <div class="sub">หมดสติ หายใจลำบาก เจ็บแน่นหน้าอก เลือดออกมาก</div>
+        </div>
+        <div class="icon">🚑</div>
+      </a>
+
+      <div class="sectionTitle">ติดต่อโรงพยาบาล</div>
       <div class="list">
 
         <!-- ✅ เบอร์ 1 -->
-        <a class="call" href="tel:0955983350" aria-label="โทร พยาบาลประสานงาน 0955983350">
+        <a class="call call--ok" href="tel:0955983350" aria-label="โทร พยาบาลประสานงาน 0955983350">
           <div class="idx">1</div>
           <div class="txt">
             <div class="name">พยาบาลประสานงาน</div>
@@ -184,8 +212,8 @@
           <div class="icon">📞</div>
         </a>
 
-        <!-- ✅ เบอร์ 2 -->
-        <a class="call" href="tel:0XXXXXXXXX" aria-label="โทร วอร์ดศัลยกรรม 0XXXXXXXXX">
+        <!-- ✅ เบอร์ 2 (ใส่เบอร์จริงแทน X) -->
+        <a class="call call--ok" href="tel:0XXXXXXXXX" aria-label="โทร วอร์ดศัลยกรรม 0XXXXXXXXX">
           <div class="idx">2</div>
           <div class="txt">
             <div class="name">วอร์ดศัลยกรรม / ห้องพยาบาล</div>
@@ -194,22 +222,12 @@
           <div class="icon">📞</div>
         </a>
 
-        <!-- ✅ เบอร์ 3 -->
-        <a class="call" href="tel:0YYYYYYYYY" aria-label="โทร นัดหมายติดตามอาการ 0YYYYYYYYY">
+        <!-- ✅ เบอร์ 3 (ใส่เบอร์จริงแทน Y) -->
+        <a class="call call--ok" href="tel:0YYYYYYYYY" aria-label="โทร นัดหมายติดตามอาการ 0YYYYYYYYY">
           <div class="idx">3</div>
           <div class="txt">
             <div class="name">นัดหมาย / ติดตามอาการ</div>
             <div class="num">0Y-YYY-YYYY</div>
-          </div>
-          <div class="icon">📞</div>
-        </a>
-        
-        <!-- ✅ เบอร์ 4 -->
-        <a class="call" href="tel:0YYYYYYYYY" aria-label="โทร ฉุกเฉิน 1669">
-          <div class="idx">3</div>
-          <div class="txt">
-            <div class="name">กรณีฉุกเฉิน</div>
-            <div class="num">1669</div>
           </div>
           <div class="icon">📞</div>
         </a>
