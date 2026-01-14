@@ -4,34 +4,51 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#06C755" />
   <title>คลังคลิปผู้ป่วยผ่าตัดถุงน้ำดี (LC)</title>
 
   <link rel="stylesheet" href="style.css" />
-
-  <!-- LIFF SDK (ไม่จำเป็นต่อการดูคลิป แต่ใส่ไว้ไม่เสียหาย) -->
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 
 <body>
   <header class="topbar">
-    <div class="topbar__left">
-      <div class="title" id="appTitle">คลังคลิปผู้ป่วยผ่าตัดถุงน้ำดี (LC)</div>
-      <div class="subtitle" id="subtitle">กำลังโหลด…</div>
+    <div class="brand">
+      <div class="brand__title" id="appTitle">คลังคลิปผู้ป่วยผ่าตัดถุงน้ำดี (LC)</div>
+      <div class="brand__sub" id="subtitle">กำลังโหลด…</div>
     </div>
-    <div class="topbar__right">
-      <button class="chip" id="btnHelp" type="button">วิธีใช้</button>
-    </div>
+
+    <button class="iconBtn" id="btnHelp" type="button" aria-label="วิธีใช้">
+      <span class="iconBtn__dot"></span>
+      วิธีใช้
+    </button>
   </header>
 
   <main class="container">
-    <section class="panel">
-      <div class="panelRow">
-        <label class="field">
-          <span class="field__label">เลือกหัวข้อ</span>
-          <select id="categorySelect"></select>
-        </label>
+    <section class="dash">
+      <div class="tabsWrap">
+        <div class="tabsTitle">เส้นทางการดูแล</div>
+        <div id="categoryTabs" class="tabs" role="tablist" aria-label="เลือกหัวข้อ"></div>
+      </div>
 
-        <button id="btnContinue" class="btn btn--primary" type="button">ดูต่อจากล่าสุด</button>
+      <div class="summary">
+        <div class="summary__left">
+          <div id="progressRing" class="ring" aria-label="ความคืบหน้า">
+            <div class="ring__inner">
+              <div id="ringValue" class="ring__value">0%</div>
+            </div>
+          </div>
+
+          <div class="summaryText">
+            <div id="progressText" class="summaryText__main">ดูแล้ว 0/0 คลิป</div>
+            <div id="progressHint" class="summaryText__sub">แนะนำให้เริ่มจาก “เริ่มที่นี่” แล้วไล่ตามลำดับ</div>
+          </div>
+        </div>
+
+        <div class="summary__right">
+          <button id="btnStart" class="btn btn--ghost" type="button">เริ่มที่นี่</button>
+          <button id="btnContinue" class="btn btn--primary" type="button">ดูต่อ</button>
+        </div>
       </div>
 
       <div id="tipBox" class="tip"></div>
@@ -53,15 +70,17 @@
     <div class="modalCard">
       <div class="modalHeader">
         <div class="modalTitle">วิธีใช้</div>
-        <button id="helpClose" class="chip" type="button">ปิด</button>
+        <button id="helpClose" class="iconBtn" type="button">ปิด</button>
       </div>
+
       <div class="modalBody">
         <ol class="helpList">
-          <li>เลือกหัวข้อ A/B/C</li>
+          <li>เลือกหัวข้อ A/B/C จากแถบ “เส้นทางการดูแล”</li>
+          <li>ดูความคืบหน้าที่วงกลม (ดูแล้วกี่เปอร์เซ็นต์)</li>
           <li>กด “ดูคลิป” เพื่อเปิดวิดีโอ</li>
-          <li>กด “ทำเครื่องหมายดูแล้ว” เพื่อให้ระบบจำว่าเคยดู (ถ้าเครื่องอนุญาต)</li>
-          <li>กด “ดูต่อจากล่าสุด” เพื่อกลับไปคลิปล่าสุดของหัวข้อนั้น</li>
+          <li>ในหน้าวิดีโอ กด “ทำเครื่องหมายดูแล้ว” และใช้ “ก่อนหน้า/ถัดไป” ได้</li>
         </ol>
+
         <div class="note">
           ถ้าคลิปเปิดไม่ได้ ให้เช็คว่าไฟล์ใน Google Drive ตั้งเป็น <b>Anyone with the link → Viewer</b>
         </div>
@@ -77,7 +96,7 @@
           <div id="videoTitle" class="modalTitle"></div>
           <div id="videoMeta" class="modalMeta"></div>
         </div>
-        <button id="videoClose" class="chip" type="button">ปิด</button>
+        <button id="videoClose" class="iconBtn" type="button">ปิด</button>
       </div>
 
       <div class="modalBody">
@@ -88,8 +107,10 @@
         <div id="videoNote" class="videoNote"></div>
 
         <div class="modalFooter">
-          <button id="btnToggleWatched" class="btn" type="button">ทำเครื่องหมายดูแล้ว</button>
-          <a id="btnOpenDrive" class="btn btn--ghost" href="#" target="_blank" rel="noopener">เปิดเต็มจอ (Drive)</a>
+          <button id="btnPrev" class="btn btn--ghost" type="button">ก่อนหน้า</button>
+          <button id="btnToggleWatched" class="btn btn--primary" type="button">ทำเครื่องหมายดูแล้ว</button>
+          <button id="btnNext" class="btn btn--ghost" type="button">ถัดไป</button>
+          <a id="btnOpenDrive" class="link" href="#" target="_blank" rel="noopener">เปิดเต็มจอ (Drive)</a>
         </div>
       </div>
     </div>
@@ -101,6 +122,6 @@
       DATA_URL: "data.json"
     };
   </script>
-  <script src="app.js?v=2026-01-14-2"></script>
+  <script src="app.js?v=wow3-2026-01-14"></script>
 </body>
 </html>
