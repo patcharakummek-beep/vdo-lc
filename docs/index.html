@@ -27,10 +27,13 @@
 
   <main class="container">
     <!-- HERO / DASHBOARD -->
-    <section class="hero">
+    <section class="hero" id="hero">
+      <div class="heroBgIcon" id="heroBgIcon" aria-hidden="true"></div>
+
       <div class="heroTop">
         <div class="topic">
           <div class="topic__pill" id="topicPill">หัวข้อ</div>
+          <div class="topic__hint" id="topicHint"></div>
         </div>
 
         <div class="ring" id="progressRing" aria-label="ความคืบหน้า">
@@ -41,42 +44,21 @@
         </div>
       </div>
 
-      <!-- WOW AREA -->
       <div class="heroMid">
-        <div class="statsRow" role="group" aria-label="สรุปความคืบหน้า">
-          <div class="statCard">
-            <div class="statCard__num" id="statWatched">0</div>
-            <div class="statCard__label">ดูแล้ว</div>
-          </div>
-
-          <div class="statCard">
-            <div class="statCard__num" id="statRemain">0</div>
-            <div class="statCard__label">เหลือ</div>
-          </div>
-
-          <div class="statCard">
-            <div class="statCard__num" id="statMust">0/0</div>
-            <div class="statCard__label">ต้องดู</div>
+        <div class="progressRow">
+          <div class="progressText" id="progressText">ดูแล้ว 0/0 (เหลือ 0)</div>
+          <div class="progressPills">
+            <div class="pill" id="pillWatched"><span class="pill__k">ดูแล้ว</span><span class="pill__v" id="pillWatchedVal">0</span></div>
+            <div class="pill" id="pillRemain"><span class="pill__k">เหลือ</span><span class="pill__v" id="pillRemainVal">0</span></div>
+            <div class="pill" id="pillMust"><span class="pill__k">ต้องดู</span><span class="pill__v" id="pillMustVal">0/0</span></div>
           </div>
         </div>
 
-        <button id="nextCard" class="nextCard" type="button">
-          <div class="nextCard__left">
-            <div class="nextCard__label" id="nextLabel">ถัดไป</div>
-            <div class="nextCard__title" id="nextTitle">—</div>
-            <div class="nextCard__meta" id="nextMeta">—</div>
-          </div>
+        <div class="bar" role="progressbar" aria-label="ความคืบหน้า" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBar">
+          <div class="bar__fill" id="progressFill"></div>
+          <div class="bar__glow" aria-hidden="true"></div>
+        </div>
 
-          <div class="nextCard__right" aria-hidden="true">
-            <div class="nextCard__pill">▶</div>
-            <div class="nextCard__arrow">→</div>
-          </div>
-        </button>
-
-        <div class="dotTrack" id="stepDots" aria-label="ขั้นตอน"></div>
-      </div>
-
-      <div class="heroBottom">
         <div class="heroActions">
           <button id="btnStart" class="btn btn--ghost" type="button">เริ่มที่นี่</button>
           <button id="btnContinue" class="btn btn--primary" type="button">ดูต่อ</button>
@@ -101,20 +83,20 @@
   <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="วิธีใช้">
     <div class="modalCard">
       <div class="modalHeader">
-        <div class="modalTitle">วิธีใช้ (อ่านแป๊บเดียว)</div>
+        <div class="modalTitle">วิธีใช้ (สั้นมาก)</div>
         <button id="helpClose" class="helpBtn" type="button">ปิด</button>
       </div>
 
       <div class="modalBody">
         <ol class="helpList">
           <li>เลือกหัวข้อจากเมนู A/B/C ใน LINE</li>
-          <li>กด <b>ดูคลิป</b> ที่การ์ดใน “รายการคลิป”</li>
-          <li>ในหน้าวิดีโอ กด <b>ก่อนหน้า / ถัดไป</b> เพื่อไล่ตามลำดับ</li>
+          <li>กดปุ่ม <b>ดูคลิป</b> ใต้คลิปที่อยากดู</li>
+          <li>ในหน้าวิดีโอ ใช้ <b>ก่อนหน้า / ถัดไป</b> เพื่อไล่ตามลำดับ</li>
           <li>กด <b>ดูต่อ</b> เพื่อกลับไปคลิปล่าสุดของหัวข้อนี้</li>
         </ol>
 
         <div class="note note--warn">
-          <b>สำคัญ:</b> วิดีโอนี้ใช้เพื่อการดูแลผู้ป่วยเท่านั้น <br/>
+          <b>สำคัญ:</b> วิดีโอนี้ใช้เพื่อการดูแลผู้ป่วยเท่านั้น<br/>
           <b>ห้ามส่งต่อ / ห้ามแชร์ลิงก์ / ห้ามบันทึกหน้าจอ</b>
         </div>
       </div>
@@ -160,6 +142,6 @@
       DATA_URL: "data.json"
     };
   </script>
-  <script src="app.js?v=locktopic-2026-01-14-3"></script>
+  <script src="app.js?v=locktopic-2026-01-14-4"></script>
 </body>
 </html>
