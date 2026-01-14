@@ -1,19 +1,16 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
-  const CONFIG = (window.APP_CONFIG || {});
-  const LIFF_ID = CONFIG.LIFF_ID || "";
+  const CONFIG = window.APP_CONFIG || {};
   const DATA_URL = CONFIG.DATA_URL || "data.json";
 
   const state = {
     data: null,
     topic: null,
-    q: "",
-    currentVideoId: null,
-    liffReady: false
+    currentVideoId: null
   };
 
-  // ---------- Safe JSON + Safe Storage ----------
+  // ---- Safe storage (กันพัง: getItem คืน null ได้ตามสเปก) ----
   function safeJsonParse(s, fallback) {
     try {
       if (s === null || s === undefined || s === "") return fallback;
@@ -38,25 +35,28 @@
     storageSet("videoProgress", JSON.stringify(p));
   }
 
-  // ---------- URL helpers (รองรับ liff.state) ----------
+  // ---- LIFF URL param helper (topic อาจอยู่ใน liff.state) ----
   function parseParam(name) {
     const u = new URL(window.location.href);
 
-    // 1) query ปกติ: ?topic=preop
     const direct = u.searchParams.get(name);
     if (direct) return direct;
 
-    // 2) ใน LIFF: ค่าอาจอยู่ใน liff.state
     const liffState = u.searchParams.get("liff.state");
     if (!liffState) return null;
 
-    // liff.state มักเป็น "/?topic=home&v=home-01" หรือ "?topic=home"
-    const normalized =
-      liffState.startsWith("/") ? liffState :
-      liffState.startsWith("?") ? ("/" + liffState) :
-      ("/?" + liffState);
+    // liff.state อาจเป็น "/?topic=preop&v=preop-01" หรือ "?topic=preop"
+    let s = liffState.trim();
+    if (s.startsWith("/")) s = s.slice(1);
+    if (s.startsWith("?")) s = s.slice(1);
 
-    const qs = normalized.split("?")[1] || "";
+    // ตัด fragment ออก
+    s = s.split("#")[0];
+
+    // ถ้ามี path?query ให้เอาเฉพาะ query
+    const parts = s.split("?");
+    const qs = (parts.length >= 2) ? parts.slice(1).join("?") : parts[0];
+
     return new URLSearchParams(qs).get(name);
   }
 
@@ -70,15 +70,14 @@
     history.replaceState({}, "", u.toString());
   }
 
-  // ---------- Drive helpers ----------
-  function getDrivePreviewUrl(driveId) {
+  // ---- Drive helpers ----
+  function drivePreview(driveId) {
     return "https://drive.google.com/file/d/" + encodeURIComponent(driveId) + "/preview";
   }
-  function getDriveViewUrl(driveId) {
+  function driveView(driveId) {
     return "https://drive.google.com/file/d/" + encodeURIComponent(driveId) + "/view";
   }
 
-  // ---------- HTML escape ----------
   function escapeHtml(s) {
     return String(s)
       .replace(/&/g, "&amp;")
@@ -88,22 +87,7 @@
       .replace(/'/g, "&#39;");
   }
 
-  // ---------- LIFF (optional) ----------
-  async function initLiffIfPossible() {
-    if (!window.liff) return false;
-    if (!LIFF_ID || LIFF_ID.indexOf("PASTE_") !== -1) return false;
-
-    try {
-      await liff.init({ liffId: LIFF_ID });
-      return true;
-    } catch (e) {
-      console.log("LIFF init failed (works as normal web)", e);
-      return false;
-    }
-  }
-
-  // ---------- UI helpers ----------
-  function setStatus(text, isError) {
+  function setStatus(text) {
     const box = $("statusBox");
     if (!box) return;
     if (!text) {
@@ -113,32 +97,14 @@
     }
     box.classList.remove("hidden");
     box.textContent = text;
-    box.style.borderColor = isError ? "rgba(229,57,53,.55)" : "rgba(6,199,85,.35)";
   }
 
-  function setTopActions() {
-    const contacts = (state.data && state.data.contacts) ? state.data.contacts : {};
-    const phone = contacts.nursePhone || "";
-    const oa = contacts.oaLineId || "";
-    const preset = contacts.presetChatText || "ขอปรึกษาอาการ/การดูแลค่ะ/ครับ";
-
-    const btnCall = $("btnCall");
-    if (btnCall) btnCall.href = phone ? ("tel:" + phone) : "#";
-
-    const btnChat = $("btnChat");
-    if (btnChat) {
-      // LINE OA message URL scheme
-      // ต้อง percent-encode @ และข้อความ
-      if (oa) {
-        btnChat.href =
-          "https://line.me/R/oaMessage/" +
-          encodeURIComponent(oa) +
-          "/?" +
-          encodeURIComponent(preset);
-      } else {
-        btnChat.href = "#";
-      }
-    }
+  function buildBadges(video, watchedSet) {
+    const out = [];
+    if (video.mustWatch) out.push('<span class="badge badge--must">ต้องดู</span>');
+    if (watchedSet.has(video.id)) out.push('<span class="badge badge--watched">ดูแล้ว</span>');
+    if (video.badge) out.push('<span class="badge">' + escapeHtml(video.badge) + "</span>");
+    return out.join("");
   }
 
   function renderCategorySelect() {
@@ -147,87 +113,54 @@
 
     sel.innerHTML = "";
 
-    const categories = (state.data && Array.isArray(state.data.categories)) ? state.data.categories : [];
-    categories.forEach((c) => {
+    const cats = Array.isArray(state.data.categories) ? state.data.categories : [];
+    cats.forEach((c) => {
       const opt = document.createElement("option");
       opt.value = c.key;
-      opt.textContent = (c.emoji ? (c.emoji + " ") : "") + c.label;
+      opt.textContent = (c.emoji ? c.emoji + " " : "") + c.label;
       sel.appendChild(opt);
     });
 
-    sel.value = state.topic || (categories[0] ? categories[0].key : "");
+    sel.value = state.topic || (cats[0] ? cats[0].key : "");
 
     sel.addEventListener("change", () => {
       state.topic = sel.value;
-
-      // เปลี่ยนหมวดแล้วปิดคลิป (ถ้าเปิดอยู่) + ลบ v ออกจาก URL
       closeVideo();
       updateUrlParams({ topic: state.topic, v: null });
-
       render();
     });
   }
 
-  function buildBadges(video, watchedSet) {
-    const parts = [];
-
-    if (video.mustWatch) {
-      parts.push('<span class="badge badge--must">ต้องดู</span>');
-    }
-    if (watchedSet.has(video.id)) {
-      parts.push('<span class="badge badge--watched">ดูแล้ว</span>');
-    }
-    if (video.badge) {
-      parts.push('<span class="badge">' + escapeHtml(video.badge) + "</span>");
-    }
-
-    return parts.join("");
-  }
-
   function render() {
-    if (!state.data) return;
+    const cats = Array.isArray(state.data.categories) ? state.data.categories : [];
+    const all = Array.isArray(state.data.videos) ? state.data.videos : [];
 
-    const categories = Array.isArray(state.data.categories) ? state.data.categories : [];
-    const videosAll = Array.isArray(state.data.videos) ? state.data.videos : [];
-
-    const topicObj = categories.find((c) => c.key === state.topic) || categories[0] || null;
-    const topicLabel = topicObj ? topicObj.label : (state.topic || "");
+    const topicObj = cats.find((c) => c.key === state.topic) || cats[0] || null;
 
     const subtitle = $("subtitle");
-    if (subtitle) subtitle.textContent = "หัวข้อ: " + topicLabel;
+    if (subtitle) subtitle.textContent = "หัวข้อ: " + (topicObj ? topicObj.label : (state.topic || ""));
 
     const tip = $("tipBox");
     if (tip) tip.textContent = (topicObj && topicObj.tip) ? topicObj.tip : "";
 
     const progress = loadProgress();
     const watchedSet = new Set(Array.isArray(progress.watched) ? progress.watched : []);
-    const lastByTopic = progress.lastByTopic || {};
-    const lastId = lastByTopic[state.topic] || null;
+    const lastId = (progress.lastByTopic && state.topic) ? progress.lastByTopic[state.topic] : null;
 
-    // ปุ่มดูต่อ
     const btnContinue = $("btnContinue");
     if (btnContinue) {
       btnContinue.onclick = () => {
         if (!lastId) {
-          alert("ยังไม่มีคลิปล่าสุดของหัวข้อนี้");
+          setStatus("ยังไม่มีคลิปล่าสุดของหัวข้อนี้");
           return;
         }
         openVideo(lastId);
       };
     }
 
-    let videos = videosAll
+    let videos = all
       .filter((v) => v.category === state.topic)
       .sort((a, b) => (a.order || 999) - (b.order || 999));
-
-    const q = (state.q || "").trim().toLowerCase();
-    if (q) {
-      videos = videos.filter((v) => {
-        const tags = Array.isArray(v.tags) ? v.tags.join(" ") : "";
-        const hay = (v.title + " " + (v.note || "") + " " + tags).toLowerCase();
-        return hay.indexOf(q) !== -1;
-      });
-    }
 
     const countLabel = $("countLabel");
     if (countLabel) countLabel.textContent = videos.length + " คลิป";
@@ -238,107 +171,85 @@
     list.innerHTML = "";
 
     if (videos.length === 0) {
-      setStatus("ยังไม่มีคลิปในหัวข้อนี้ หรือไม่ตรงกับคำค้นหา", false);
+      setStatus("ยังไม่มีคลิปในหัวข้อนี้");
       return;
     }
-    setStatus("", false);
+    setStatus("");
 
     videos.forEach((v) => {
-      const tags = Array.isArray(v.tags) ? v.tags.slice(0, 6) : [];
-      const tagsHtml = tags.map((t) => '<span class="tag">' + escapeHtml(t) + "</span>").join("");
-
-      const metaParts = [];
-      if (v.duration) metaParts.push("⏱ " + escapeHtml(v.duration));
-      if (tagsHtml) metaParts.push(tagsHtml);
-
       const card = document.createElement("div");
       card.className = "card";
 
-      // ✅ ตัดปุ่ม แชร์ + เปิดใน Drive ออกจากการ์ด เหลือแค่ "ดูคลิป"
+      // ✅ ไม่มีแท็กชิป, ไม่มีแชร์, ไม่มีเปิดใน Drive ที่หน้า list
       card.innerHTML = `
         <div class="card__top">
           <div class="card__title">${escapeHtml(v.title)}</div>
           <div class="badges">${buildBadges(v, watchedSet)}</div>
         </div>
         ${v.note ? `<div class="card__note">${escapeHtml(v.note)}</div>` : ""}
-        <div class="card__meta">${metaParts.join(" ")}</div>
         <div class="card__actions">
-          <button class="btn btnSmall" data-open="${escapeHtml(v.id)}" type="button">ดูคลิป</button>
+          <button class="btn" data-open="${escapeHtml(v.id)}" type="button">ดูคลิป</button>
         </div>
       `;
 
       list.appendChild(card);
     });
 
-    // bind open
-    const buttons = list.querySelectorAll("[data-open]");
-    buttons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const id = btn.getAttribute("data-open");
-        openVideo(id);
-      });
+    list.querySelectorAll("[data-open]").forEach((btn) => {
+      btn.addEventListener("click", () => openVideo(btn.getAttribute("data-open")));
     });
   }
 
   function openVideo(videoId) {
-    const videosAll = (state.data && Array.isArray(state.data.videos)) ? state.data.videos : [];
-    const v = videosAll.find((x) => x.id === videoId);
+    const all = Array.isArray(state.data.videos) ? state.data.videos : [];
+    const v = all.find((x) => x.id === videoId);
     if (!v) return;
 
     state.currentVideoId = videoId;
 
     // บันทึกล่าสุด
-    const progress = loadProgress();
-    progress.lastByTopic = progress.lastByTopic || {};
-    progress.lastByTopic[state.topic] = videoId;
-    saveProgress(progress);
+    const p = loadProgress();
+    p.lastByTopic = p.lastByTopic || {};
+    p.lastByTopic[state.topic] = videoId;
+    saveProgress(p);
 
-    // update URL deep link
     updateUrlParams({ topic: state.topic, v: videoId });
 
     const titleEl = $("videoTitle");
     if (titleEl) titleEl.textContent = v.title;
 
+    // ✅ เอา meta ที่เป็น tags ออก ให้เหลือแค่ duration (ถ้ามี)
     const metaEl = $("videoMeta");
-    if (metaEl) {
-      const tags = Array.isArray(v.tags) ? v.tags.slice(0, 5).join(" · ") : "";
-      const metaParts = [];
-      if (v.duration) metaParts.push("⏱ " + v.duration);
-      if (tags) metaParts.push("🏷 " + tags);
-      metaEl.textContent = metaParts.join("   ");
-    }
+    if (metaEl) metaEl.textContent = v.duration ? ("⏱ " + v.duration) : "";
 
     const noteEl = $("videoNote");
     if (noteEl) noteEl.textContent = v.note || "";
 
     const player = $("player");
-    if (player) player.src = getDrivePreviewUrl(v.driveId);
+    if (player) player.src = drivePreview(v.driveId);
 
     const openDrive = $("btnOpenDrive");
-    if (openDrive) openDrive.href = getDriveViewUrl(v.driveId);
+    if (openDrive) openDrive.href = driveView(v.driveId);
 
-    // ปุ่มดูแล้ว (toggle)
+    // toggle watched
     const btnToggle = $("btnToggleWatched");
     if (btnToggle) {
-      const watchedSet = new Set((loadProgress().watched || []));
-      const isWatched = watchedSet.has(videoId);
+      const watched = new Set((loadProgress().watched || []));
+      const isWatched = watched.has(videoId);
       btnToggle.textContent = isWatched ? "ยกเลิกทำเครื่องหมายดูแล้ว" : "ทำเครื่องหมายดูแล้ว";
 
       btnToggle.onclick = () => {
-        const p = loadProgress();
-        const watched = new Set(Array.isArray(p.watched) ? p.watched : []);
-        if (watched.has(videoId)) watched.delete(videoId);
-        else watched.add(videoId);
+        const pp = loadProgress();
+        const w = new Set(Array.isArray(pp.watched) ? pp.watched : []);
+        if (w.has(videoId)) w.delete(videoId);
+        else w.add(videoId);
 
-        p.watched = Array.from(watched);
-        p.lastByTopic = p.lastByTopic || {};
-        p.lastByTopic[state.topic] = videoId;
+        pp.watched = Array.from(w);
+        pp.lastByTopic = pp.lastByTopic || {};
+        pp.lastByTopic[state.topic] = videoId;
 
-        saveProgress(p);
-
-        // อัปเดตปุ่ม + รีเรนเดอร์รายการให้ badge เปลี่ยน
-        const nowWatched = watched.has(videoId);
-        btnToggle.textContent = nowWatched ? "ยกเลิกทำเครื่องหมายดูแล้ว" : "ทำเครื่องหมายดูแล้ว";
+        saveProgress(pp);
+        btnToggle.textContent = w.has(videoId) ? "ยกเลิกทำเครื่องหมายดูแล้ว" : "ทำเครื่องหมายดูแล้ว";
         render();
       };
     }
@@ -354,7 +265,6 @@
     const player = $("player");
     if (player) player.src = "";
 
-    // ลบ v ออกจาก URL แต่เก็บ topic ไว้
     updateUrlParams({ v: null });
   }
 
@@ -367,8 +277,7 @@
     if (m) m.classList.add("hidden");
   }
 
-  // ---------- Event wiring ----------
-  function wireStaticEvents() {
+  function wireEvents() {
     const btnHelp = $("btnHelp");
     if (btnHelp) btnHelp.addEventListener("click", openHelp);
 
@@ -391,63 +300,47 @@
         if (e.target && e.target.id === "videoModal") closeVideo();
       });
     }
-
-    const search = $("searchInput");
-    if (search) {
-      search.addEventListener("input", (e) => {
-        state.q = e.target.value || "";
-        render();
-      });
-    }
   }
 
   async function main() {
-    wireStaticEvents();
-
-    setStatus("กำลังโหลดข้อมูล…", false);
+    wireEvents();
+    setStatus("กำลังโหลดข้อมูล…");
 
     let res;
     try {
       res = await fetch(DATA_URL, { cache: "no-store" });
     } catch (e) {
-      setStatus("โหลดข้อมูลไม่สำเร็จ: ตรวจสอบว่า data.json อยู่ในโฟลเดอร์ docs และ URL ถูกต้อง", true);
+      setStatus("โหลดข้อมูลไม่สำเร็จ: ตรวจสอบว่า data.json อยู่ในโฟลเดอร์ docs และ GitHub Pages ปล่อยจาก /docs");
       return;
     }
 
     if (!res.ok) {
-      setStatus("โหลด data.json ไม่ได้ (HTTP " + res.status + "): ตรวจสอบ GitHub Pages ว่าปล่อยจาก /docs", true);
+      setStatus("โหลด data.json ไม่ได้ (HTTP " + res.status + "): ตรวจสอบ GitHub Pages");
       return;
     }
 
     try {
       state.data = await res.json();
     } catch (e) {
-      setStatus("data.json อ่านไม่ได้ (JSON ผิดรูปแบบ): ตรวจสอบจุลภาค/วงเล็บ", true);
+      setStatus("data.json อ่านไม่ได้ (JSON ผิดรูปแบบ)");
       return;
     }
 
-    document.title = (state.data && state.data.appTitle) ? state.data.appTitle : document.title;
+    const title = (state.data && state.data.appTitle) ? state.data.appTitle : "คลังคลิป";
+    document.title = title;
+    const appTitle = $("appTitle");
+    if (appTitle) appTitle.textContent = title;
 
-    const titleEl = $("appTitle");
-    if (titleEl) titleEl.textContent = (state.data && state.data.appTitle) ? state.data.appTitle : "คลังคลิป";
+    const cats = Array.isArray(state.data.categories) ? state.data.categories : [];
+    state.topic = parseParam("topic") || (cats[0] ? cats[0].key : "");
 
-    // topic เริ่มต้น
-    const categories = (state.data && Array.isArray(state.data.categories)) ? state.data.categories : [];
-    const topicParam = parseParam("topic");
-    state.topic = topicParam || (categories[0] ? categories[0].key : "");
-
-    // init LIFF (optional)
-    state.liffReady = await initLiffIfPossible();
-
-    setTopActions();
     renderCategorySelect();
     render();
 
-    // deep link เปิดคลิปทันทีถ้ามี v=
     const vParam = parseParam("v");
     if (vParam) openVideo(vParam);
 
-    setStatus("", false);
+    setStatus("");
   }
 
   main();
