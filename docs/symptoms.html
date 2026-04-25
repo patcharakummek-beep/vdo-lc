@@ -1,40 +1,446 @@
-<div class="choices">
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#0F8B7D" />
+  <title>กลุ่มอาการหลังผ่าตัดถุงน้ำดี</title>
 
-  <!-- 1) กลุ่มอาการ: เอาไว้บน -->
-  <button
-    class="choice choice--danger"
-    type="button"
-    data-title="กลุ่มอาการหลังผ่าตัดถุงน้ำดี"
-    data-img="assets/symptom-group-full.png?v=2"
-  >
-    <span class="choiceThumb">
-      <img src="assets/symptom-group.png?v=2" alt="กลุ่มอาการหลังผ่าตัดถุงน้ำดี">
-    </span>
+  <style>
+    :root{
+      --bg:#071522;
+      --text:#EAF0FF;
+      --muted:rgba(234,240,255,.72);
 
-    <span class="choiceText">
-      <div class="choiceTitle">กลุ่มอาการหลังผ่าตัดถุงน้ำดี</div>
-      <div class="choiceDesc">ดูอาการที่ควรสังเกตหลังผ่าตัด</div>
-    </span>
+      --teal:#0F8B7D;
+      --teal2:#2DB7A3;
+      --cream:#FFF6D9;
+      --red:#FF5757;
 
-    <span class="choiceArrow">›</span>
-  </button>
+      --glass:rgba(255,255,255,.10);
+      --glass2:rgba(255,255,255,.06);
+      --border:rgba(255,255,255,.14);
+      --shadow:0 22px 70px rgba(0,0,0,.48);
 
-  <!-- 2) วงล้อ: ย้ายมาไว้ล่าง -->
-  <a
-    class="choice choice--teal"
-    href="stool_wheel_mobile_th/index.html?v=2"
-    aria-label="เปิดวงล้อประเมินสีและลักษณะอุจจาระ"
-  >
-    <span class="choiceThumb">
-      <img src="assets/stool-wheel-thumb.png?v=2" alt="วงล้อประเมินสีและลักษณะอุจจาระ">
-    </span>
+      --r:26px;
+    }
 
-    <span class="choiceText">
-      <div class="choiceTitle">วงล้อประเมินสี/ลักษณะอุจจาระ</div>
-      <div class="choiceDesc">เปิดเครื่องมือวงล้อแบบหมุนได้</div>
-    </span>
+    *{
+      box-sizing:border-box;
+    }
 
-    <span class="choiceArrow">›</span>
-  </a>
+    html,body{
+      min-height:100%;
+    }
 
-</div>
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Thai",Arial,sans-serif;
+      color:var(--text);
+
+      background:
+        radial-gradient(900px 540px at 14% -8%,rgba(15,139,125,.36),transparent 60%),
+        radial-gradient(860px 520px at 112% 2%,rgba(45,183,163,.18),transparent 58%),
+        radial-gradient(760px 520px at 60% 120%,rgba(255,246,217,.10),transparent 60%),
+        var(--bg);
+
+      padding:14px;
+      padding-top:calc(14px + env(safe-area-inset-top));
+      padding-bottom:calc(16px + env(safe-area-inset-bottom));
+    }
+
+    .wrap{
+      max-width:560px;
+      margin:0 auto;
+    }
+
+    .sheet{
+      border-radius:var(--r);
+      border:1px solid var(--border);
+      background:linear-gradient(180deg,var(--glass),var(--glass2));
+      box-shadow:var(--shadow);
+      padding:16px;
+      overflow:hidden;
+
+      -webkit-backdrop-filter:blur(10px) saturate(130%);
+      backdrop-filter:blur(10px) saturate(130%);
+    }
+
+    @supports not (backdrop-filter: blur(1px)){
+      .sheet{
+        background:rgba(17,24,39,.78);
+      }
+    }
+
+    .top{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-bottom:14px;
+    }
+
+    .topIcon{
+      width:54px;
+      height:54px;
+      border-radius:18px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(255,255,255,.10);
+      border:1px solid var(--border);
+      font-size:26px;
+      flex:0 0 auto;
+    }
+
+    h1{
+      margin:0;
+      font-size:22px;
+      line-height:1.15;
+      font-weight:950;
+      letter-spacing:-.2px;
+    }
+
+    .sub{
+      margin-top:5px;
+      color:var(--muted);
+      font-size:15px;
+      line-height:1.35;
+    }
+
+    .privacy{
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      padding:10px 12px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(0,0,0,.12);
+      margin-bottom:14px;
+    }
+
+    .privacyPill{
+      flex:0 0 auto;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.08);
+      padding:6px 10px;
+      font-weight:950;
+      font-size:14px;
+      line-height:1;
+    }
+
+    .privacyText{
+      min-width:0;
+      font-size:14px;
+      line-height:1.35;
+      color:var(--muted);
+    }
+
+    .privacyText b{
+      color:var(--text);
+    }
+
+    .choices{
+      display:grid;
+      gap:14px;
+    }
+
+    .choice{
+      width:100%;
+      text-align:left;
+      border:1px solid rgba(255,255,255,.16);
+      background:rgba(255,255,255,.07);
+      color:var(--text);
+      border-radius:24px;
+      padding:12px;
+
+      display:grid;
+      grid-template-columns:104px 1fr 42px;
+      gap:12px;
+      align-items:center;
+
+      cursor:pointer;
+      min-height:124px;
+      box-shadow:0 16px 42px rgba(0,0,0,.22);
+      touch-action:manipulation;
+      text-decoration:none;
+      font:inherit;
+    }
+
+    .choice:active{
+      transform:scale(.99);
+    }
+
+    .choiceThumb{
+      width:104px;
+      height:104px;
+      border-radius:20px;
+      overflow:hidden;
+      background:var(--cream);
+      border:1px solid rgba(255,255,255,.18);
+    }
+
+    .choiceThumb img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+
+    .choiceText{
+      min-width:0;
+    }
+
+    .choiceTitle{
+      font-size:18px;
+      line-height:1.2;
+      font-weight:950;
+      margin-bottom:6px;
+    }
+
+    .choiceDesc{
+      font-size:14px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    .choiceArrow{
+      width:42px;
+      height:42px;
+      border-radius:16px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      font-weight:950;
+      color:var(--teal2);
+      font-size:20px;
+    }
+
+    .choice--danger{
+      border-color:rgba(255,87,87,.35);
+    }
+
+    .choice--teal{
+      border-color:rgba(45,183,163,.42);
+    }
+
+    .foot{
+      margin-top:12px;
+      text-align:center;
+      color:rgba(234,240,255,.62);
+      font-size:13px;
+    }
+
+    /* Modal */
+    .modal.hidden{
+      display:none;
+    }
+
+    .modal{
+      position:fixed;
+      inset:0;
+      z-index:99;
+      background:rgba(0,0,0,.58);
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+      padding:0;
+    }
+
+    .viewer{
+      width:100%;
+      max-height:94vh;
+      background:#0b1020;
+      border-radius:24px 24px 0 0;
+      border:1px solid rgba(255,255,255,.14);
+      overflow:hidden;
+      box-shadow:0 26px 90px rgba(0,0,0,.55);
+    }
+
+    @media(min-width:900px){
+      .modal{
+        align-items:center;
+        padding:16px;
+      }
+
+      .viewer{
+        max-width:720px;
+        border-radius:24px;
+      }
+    }
+
+    .viewerTop{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:12px;
+      border-bottom:1px solid rgba(255,255,255,.12);
+    }
+
+    .viewerTitle{
+      flex:1 1 auto;
+      text-align:center;
+      font-weight:950;
+      font-size:17px;
+      line-height:1.2;
+    }
+
+    .btn{
+      min-height:48px;
+      border:1px solid rgba(255,255,255,.16);
+      background:rgba(255,255,255,.08);
+      color:var(--text);
+      border-radius:999px;
+      padding:9px 12px;
+      font-weight:900;
+      cursor:pointer;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font:inherit;
+    }
+
+    .imgFrame{
+      max-height:calc(94vh - 78px);
+      overflow:auto;
+      -webkit-overflow-scrolling:touch;
+      background:rgba(255,255,255,.04);
+      padding:12px;
+    }
+
+    .imgFrame img{
+      width:100%;
+      height:auto;
+      display:block;
+      border-radius:18px;
+      background:var(--cream);
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+    <section class="sheet">
+
+      <div class="top">
+        <div class="topIcon">🩺</div>
+        <div>
+          <h1>เลือกหัวข้อที่ต้องการดู</h1>
+          <div class="sub">แตะรูปเพื่อเปิดดูรายละเอียด</div>
+        </div>
+      </div>
+
+      <div class="privacy">
+        <span class="privacyPill">🔒 สำคัญ</span>
+        <span class="privacyText">
+          <b>ห้ามส่งต่อ/ห้ามแชร์ให้บุคคลอื่น</b><br>
+          ใช้เฉพาะผู้ป่วยที่เข้าร่วมโปรแกรม
+        </span>
+      </div>
+
+      <div class="choices">
+
+        <!-- 1) กลุ่มอาการ: อยู่บน -->
+        <!--
+          จุดสำคัญ:
+          - img src = รูปเล็ก/ไอคอนบนการ์ด
+          - data-img = รูปใหญ่/รูปเดิมที่เปิดตอนกด
+        -->
+        <button
+          class="choice choice--danger"
+          type="button"
+          data-title="กลุ่มอาการหลังผ่าตัดถุงน้ำดี"
+          data-img="assets/symptom-group-full.png?v=3"
+        >
+          <span class="choiceThumb">
+            <img src="assets/symptom-group.png?v=3" alt="กลุ่มอาการหลังผ่าตัดถุงน้ำดี">
+          </span>
+
+          <span class="choiceText">
+            <div class="choiceTitle">กลุ่มอาการหลังผ่าตัดถุงน้ำดี</div>
+            <div class="choiceDesc">ดูอาการที่ควรสังเกตหลังผ่าตัด</div>
+          </span>
+
+          <span class="choiceArrow">›</span>
+        </button>
+
+        <!-- 2) วงล้อ interactive: ย้ายมาไว้ล่าง -->
+        <a
+          class="choice choice--teal"
+          href="stool_wheel_mobile_th/index.html?v=3"
+          aria-label="เปิดวงล้อประเมินสีและลักษณะอุจจาระ"
+        >
+          <span class="choiceThumb">
+            <img src="assets/stool-wheel-thumb.png?v=3" alt="วงล้อประเมินสีและลักษณะอุจจาระ">
+          </span>
+
+          <span class="choiceText">
+            <div class="choiceTitle">วงล้อประเมินสี/ลักษณะอุจจาระ</div>
+            <div class="choiceDesc">เปิดเครื่องมือวงล้อแบบหมุนได้</div>
+          </span>
+
+          <span class="choiceArrow">›</span>
+        </a>
+
+      </div>
+
+      <div class="foot">แตะหัวข้อเพื่อเปิดดู</div>
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="ดูรูป">
+    <div class="viewer">
+      <div class="viewerTop">
+        <button id="btnClose" class="btn" type="button">ปิด</button>
+        <div id="viewerTitle" class="viewerTitle">หัวข้อ</div>
+        <a id="btnFull" class="btn" href="#" target="_blank" rel="noopener">เต็มจอ</a>
+      </div>
+
+      <div class="imgFrame">
+        <img id="viewerImg" src="" alt="">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const modal = document.getElementById("modal");
+    const viewerTitle = document.getElementById("viewerTitle");
+    const viewerImg = document.getElementById("viewerImg");
+    const btnFull = document.getElementById("btnFull");
+
+    function openViewer(title, img){
+      viewerTitle.textContent = title;
+      viewerImg.src = img;
+      viewerImg.alt = title;
+      btnFull.href = img;
+      modal.classList.remove("hidden");
+    }
+
+    function closeViewer(){
+      modal.classList.add("hidden");
+      viewerImg.src = "";
+      viewerImg.alt = "";
+    }
+
+    document.querySelectorAll(".choice[data-img]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        openViewer(btn.dataset.title, btn.dataset.img);
+      });
+    });
+
+    document.getElementById("btnClose").addEventListener("click", closeViewer);
+
+    modal.addEventListener("click", e => {
+      if(e.target.id === "modal") closeViewer();
+    });
+
+    document.addEventListener("keydown", e => {
+      if(e.key === "Escape") closeViewer();
+    });
+  </script>
+</body>
+</html>
