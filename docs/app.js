@@ -12,6 +12,72 @@
     openedAt: null
   };
 
+  // LC-UI-LOCK-R3: behavior-only patch. Existing render functions/styles/text are preserved.
+  const runtime = {
+    build: "LC-UI-LOCK-R3",
+    liffStatus: "not-started",
+    canWriteUrl: false,
+    pendingParams: {},
+    fullPending: false,
+    fullResult: "not-requested"
+  };
+
+  // Diagnostics are console-only: no token, profile, phone or Drive link is exposed here.
+  window.LC_PLAYER_DIAGNOSTICS = () => ({
+    build: runtime.build,
+    liffStatus: runtime.liffStatus,
+    canWriteUrl: runtime.canWriteUrl,
+    fullResult: runtime.fullResult,
+    topic: state.topic,
+    catalogCount: getAllVideos().length,
+    videoOpen: !!state.currentVideoId,
+    progressMode: "legacy-10-second-page-open-not-verified-playback"
+  });
+
+  function hasLiffContext() {
+    try {
+      const u = new URL(window.location.href);
+      return u.searchParams.has("liff.state") || u.searchParams.has("liff.referrer") ||
+        /Line\//i.test(navigator.userAgent) ||
+        !!(window.liff && typeof window.liff.isInClient === "function" && window.liff.isInClient());
+    } catch (e) { return false; }
+  }
+
+  async function initializeLiff() {
+    const id = String(CONFIG.LIFF_ID || "");
+    if (!window.liff || typeof window.liff.init !== "function" || !id || /PASTE_/i.test(id)) {
+      runtime.liffStatus = "unavailable";
+      runtime.canWriteUrl = !hasLiffContext();
+      return;
+    }
+    runtime.liffStatus = "pending";
+    let timeout;
+    const initialization = (async () => {
+      try {
+        await window.liff.init({ liffId: id, withLoginOnExternalBrowser: false });
+        runtime.liffStatus = "ready";
+        runtime.canWriteUrl = true;
+        const pending = runtime.pendingParams;
+        runtime.pendingParams = {};
+        if (Object.keys(pending).length) updateUrlParams(pending);
+      } catch (e) {
+        runtime.liffStatus = "failed";
+        runtime.canWriteUrl = false;
+        console.warn("[LC-UI-LOCK-R3] LIFF initialization failed; local UI remains available.");
+      }
+    })();
+    // Don't leave the catalog indefinitely blocked by a third-party initialization.
+    // A timeout NEVER authorizes URL rewriting. A late successful init may do so.
+    await Promise.race([
+      initialization,
+      new Promise(resolve => { timeout = setTimeout(() => {
+        if (runtime.liffStatus === "pending") runtime.liffStatus = "timeout";
+        resolve();
+      }, 8000); })
+    ]);
+    clearTimeout(timeout);
+  }
+
   // ---------- Safe storage ----------
   function safeJsonParse(s, fallback) {
     try {
@@ -31,7 +97,20 @@
   }
 
   function loadProgress() {
-    return safeJsonParse(storageGet("videoProgress"), { watched: [], lastByTopic: {} });
+    const parsed = safeJsonParse(storageGet("videoProgress"), {});
+    const p = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    const last = p.lastByTopic && typeof p.lastByTopic === "object" && !Array.isArray(p.lastByTopic)
+      ? p.lastByTopic : {};
+    const safeLast = {};
+    Object.keys(last).forEach(key => {
+      if (key !== "__proto__" && key !== "constructor" && key !== "prototype" && typeof last[key] === "string") {
+        safeLast[key] = last[key];
+      }
+    });
+    return {
+      watched: Array.isArray(p.watched) ? p.watched.filter(id => typeof id === "string") : [],
+      lastByTopic: safeLast
+    };
   }
   function saveProgress(p) {
     storageSet("videoProgress", JSON.stringify(p));
@@ -50,31 +129,41 @@
   // ---------- LIFF param helper ----------
   function parseParam(name) {
     const u = new URL(window.location.href);
-
     const direct = u.searchParams.get(name);
-    if (direct) return direct;
-
-    const liffStateEnc = u.searchParams.get("liff.state");
-    if (!liffStateEnc) return null;
-
-    let decoded = liffStateEnc;
-    try { decoded = decodeURIComponent(liffStateEnc); } catch (e) {}
-
-    const qIndex = decoded.indexOf("?");
-    const qs = (qIndex >= 0) ? decoded.slice(qIndex + 1) : decoded;
-    const qsNoFrag = qs.split("#")[0];
-
-    return new URLSearchParams(qsNoFrag).get(name);
+    if (direct !== null && direct !== "") return direct;
+    let nested = u.searchParams.get("liff.state");
+    if (!nested) return null;
+    // URLSearchParams already decoded the outer query once. Do not double-decode
+    // query VALUES (e.g. an encoded ampersand) into new query parameters.
+    if (!/[?=]/.test(nested) && /%[0-9a-f]{2}/i.test(nested)) {
+      try { nested = decodeURIComponent(nested); } catch (e) { return null; }
+    }
+    const queryStart = nested.indexOf("?");
+    const query = queryStart >= 0 ? nested.slice(queryStart + 1) : nested.replace(/^\//, "");
+    return new URLSearchParams(query.split("#")[0]).get(name);
   }
 
   function updateUrlParams(params) {
-    const u = new URL(window.location.href);
-    Object.keys(params).forEach((k) => {
-      const v = params[k];
-      if (v === null || v === undefined || v === "") u.searchParams.delete(k);
-      else u.searchParams.set(k, String(v));
+    const own = {};
+    ["topic", "v"].forEach(key => {
+      if (Object.prototype.hasOwnProperty.call(params, key)) own[key] = params[key];
     });
-    history.replaceState({}, "", u.toString());
+    if (!runtime.canWriteUrl) {
+      Object.assign(runtime.pendingParams, own);
+      return;
+    }
+    try {
+      const u = new URL(window.location.href);
+      Object.keys(own).forEach(key => {
+        const value = own[key];
+        if (value === null || value === undefined || value === "") u.searchParams.delete(key);
+        else u.searchParams.set(key, String(value));
+      });
+      // Leave all liff.* parameters untouched. No navigation or page reload.
+      history.replaceState(history.state, "", u.toString());
+    } catch (e) {
+      console.warn("[LC-UI-LOCK-R3] URL update unavailable; playback selection is kept in memory.");
+    }
   }
 
   // ---------- Data helpers ----------
@@ -114,6 +203,70 @@
   }
   function drivePreviewFull(driveId) {
     return drivePreview(driveId);
+  }
+
+  function validDriveId(id) {
+    return typeof id === "string" && /^[A-Za-z0-9_-]{10,200}$/.test(id);
+  }
+
+  function stopPlayer() {
+    const player = $("player");
+    if (player) player.src = "about:blank";
+  }
+
+  function openOutsideLine(videoId) {
+    const v = getTopicVideos(state.topic).find(item => item.id === videoId);
+    if (!v || !validDriveId(v.driveId) || state.currentVideoId !== videoId ||
+        $("videoModal")?.classList.contains("hidden")) return;
+    // A normal authenticated Drive viewer, NOT a download URL, proxy or public copy.
+    const url = "https://drive.google.com/file/d/" + encodeURIComponent(v.driveId) + "/view";
+    try {
+      if (runtime.liffStatus === "ready" && window.liff &&
+          typeof window.liff.isInClient === "function" && window.liff.isInClient() &&
+          typeof window.liff.openWindow === "function") {
+        window.liff.openWindow({ url, external: true });
+        runtime.fullResult = "external-requested";
+        return;
+      }
+    } catch (e) {
+      console.warn("[LC-UI-LOCK-R3] External handoff unavailable; using the existing link destination.");
+    }
+    // This occurs only after the user presses the EXISTING full-screen control.
+    // Same-tab navigation avoids silently losing an async window.open to popup blocking.
+    runtime.fullResult = "drive-view-navigation";
+    window.location.assign(url);
+  }
+
+  function fullScreenFromExistingButton(event) {
+    if (event && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) return;
+    if (event) event.preventDefault();
+    if (runtime.fullPending) return;
+    const id = state.currentVideoId;
+    const box = $("player")?.parentElement;
+    if (!id || !box || $("videoModal")?.classList.contains("hidden")) return;
+    const standard = typeof box.requestFullscreen === "function" && document.fullscreenEnabled !== false;
+    const webkit = typeof box.webkitRequestFullscreen === "function" && document.webkitFullscreenEnabled !== false;
+    if (!standard && !webkit) {
+      runtime.fullResult = "native-unavailable";
+      openOutsideLine(id);
+      return;
+    }
+    runtime.fullPending = true;
+    try {
+      // Request the SAME wrapper and iframe, including the existing watermark.
+      // Never change styles, dimensions, labels, or recreate the iframe here.
+      const result = standard ? box.requestFullscreen() : box.webkitRequestFullscreen();
+      Promise.resolve(result).then(() => {
+        runtime.fullResult = "native-request-resolved";
+      }).catch(() => {
+        runtime.fullResult = "native-rejected";
+        openOutsideLine(id);
+      }).finally(() => { runtime.fullPending = false; });
+    } catch (e) {
+      runtime.fullPending = false;
+      runtime.fullResult = "native-error";
+      openOutsideLine(id);
+    }
   }
 
   // ---------- UI helpers ----------
@@ -310,8 +463,9 @@
 
   function openVideo(videoId) {
     const vids = getTopicVideos(state.topic);
-    const v = vids.find(x => x.id === videoId) || getAllVideos().find(x => x.id === videoId);
-    if (!v) return;
+    const v = vids.find(x => x.id === videoId);
+    // Lock the selection to this topic; do not open another category via v=.
+    if (!v || !validDriveId(v.driveId)) return;
 
     state.currentVideoId = v.id;
 
@@ -340,7 +494,12 @@
     if (noteEl) noteEl.textContent = v.note || "";
 
     const player = $("player");
-    if (player) player.src = drivePreview(v.driveId);
+    if (player) {
+      const preview = drivePreview(v.driveId);
+      // This permission applies to the iframe; it does not force video autoplay.
+      player.setAttribute("allow", "autoplay; encrypted-media; fullscreen");
+      if (player.getAttribute("src") !== preview) player.src = preview;
+    }
 
     const topicLabel = (getCategories().find(c => c.key === state.topic)?.label) || state.topic || "";
     setWatermark(`CONFIDENTIAL • ${topicLabel} • ห้ามส่งต่อ`);
@@ -381,7 +540,8 @@
     if (modal) modal.classList.add("hidden");
 
     const player = $("player");
-    if (player) player.src = "";
+    stopPlayer();
+    state.currentVideoId = null;
 
     updateUrlParams({ v: null });
 
@@ -393,6 +553,7 @@
   function closeHelp() { $("helpModal")?.classList.add("hidden"); }
 
   function wireEvents() {
+    $("btnOpenFull")?.addEventListener("click", fullScreenFromExistingButton);
     $("btnHelp")?.addEventListener("click", openHelp);
     $("helpClose")?.addEventListener("click", closeHelp);
 
@@ -474,8 +635,11 @@
 
     const cats = getCategories();
 
+    // SDK initialization finishes before normal route reads/history changes.
+    await initializeLiff();
     const topicParam = parseParam("topic");
-    state.topic = topicParam || (cats[0] ? cats[0].key : "preop");
+    state.topic = cats.some(c => c.key === topicParam)
+      ? topicParam : (cats[0] ? cats[0].key : "preop");
 
     applyTheme(state.topic);
 
