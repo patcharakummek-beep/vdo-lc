@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="light">
+  <title>ตรวจกรอบวิดีโอแยกจากแอป</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#fff;color:#18212c;font:18px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+    header,footer{padding:16px}
+    h1{margin:0 0 8px;font-size:22px;line-height:1.4}
+    p{margin:8px 0}
+    #clipTitle{font-weight:700}
+    /* Match the existing modal border/body padding and 16:9 wrapper. */
+    .frameShell{width:100%;border:1px solid transparent;padding:12px}
+    .frameBox{position:relative;width:100%;padding-top:56.25%;border:1px solid rgba(15,23,42,.1);border-radius:16px;overflow:hidden;background:#000}
+    .frameBox iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+    .small{font-size:15px;color:#475569;overflow-wrap:anywhere}
+    [hidden]{display:none!important}
+    #error{padding:12px;border:2px solid #a31313;color:#851111}
+    details{margin-top:16px}
+    summary{min-height:48px;padding:10px 0;cursor:pointer}
+    pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ตรวจกรอบวิดีโอแยกจากแอป</h1>
+    <p id="clipTitle">กำลังอ่านชื่อคลิป…</p>
+    <p>กด ▶ แล้วรอประมาณ 10 วินาที โดยยังไม่เปิดเต็มจอ</p>
+    <p class="small">หน้านี้เป็นการตรวจแยกสาเหตุ ไม่ใช่หน้าแก้สำเร็จ และไม่ได้แทนหน้าหลัก</p>
+    <p id="error" role="alert" hidden></p>
+  </header>
+  <div class="frameShell">
+    <div class="frameBox">
+      <iframe id="isolatedPlayer" src="about:blank" title="วิดีโอสำหรับตรวจกรอบเล็ก" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+    </div>
+  </div>
+  <footer>
+    <p>สังเกตว่าภาพยังมืดและปุ่มควบคุมยังถูกตัดเหมือนเดิมหรือไม่</p>
+    <p class="small">ไม่มีลายน้ำ หน้าต่างซ้อน หรือ app.js ในหน้านี้ ใช้ไฟล์วิดีโอและสิทธิ์ Google Drive เดิม</p>
+    <details>
+      <summary>ข้อมูลสำหรับตรวจสอบ</summary>
+      <pre id="diagnostics"></pre>
+    </details>
+  </footer>
+  <script>
+    (() => {
+      "use strict";
+      const frame = document.getElementById("isolatedPlayer");
+      const title = document.getElementById("clipTitle");
+      const error = document.getElementById("error");
+      let selected = null;
+      function diagnostics() {
+        const box = frame.getBoundingClientRect();
+        return {
+          test: "LC-ISOLATE-20260918",
+          videoId: selected,
+          viewportWidth: innerWidth,
+          viewportHeight: innerHeight,
+          frameWidth: Math.round(box.width),
+          frameHeight: Math.round(box.height),
+          browser: navigator.userAgent,
+          playbackVerified: false
+        };
+      }
+      function showDiagnostics() {
+        document.getElementById("diagnostics").textContent = JSON.stringify(diagnostics(), null, 2);
+      }
+      window.LC_INLINE_ISOLATION_DIAGNOSTICS = diagnostics;
+      window.addEventListener("resize", showDiagnostics, { passive: true });
+      async function load() {
+        try {
+          const params = new URL(location.href).searchParams;
+          const id = params.get("v") || "preop-03";
+          if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id)) throw new Error("รหัสคลิปไม่ถูกต้อง");
+          const response = await fetch("./data.json", { cache: "no-store" });
+          if (!response.ok) throw new Error("เปิด data.json ไม่สำเร็จ (" + response.status + ")");
+          const data = await response.json();
+          const video = Array.isArray(data.videos) && data.videos.find(item => item && item.id === id);
+          if (!video || typeof video.driveId !== "string" || !/^[A-Za-z0-9_-]{10,200}$/.test(video.driveId)) {
+            throw new Error("ไม่พบคลิปที่ระบุในรายการเดิม");
+          }
+          selected = video.id;
+          title.textContent = String(video.title || "วิดีโอ").replace(/^\s*คลิปที่\s*\d+(?:\.\d+)?\s*/, "");
+          frame.title = title.textContent;
+          // No raw download URL, srcdoc, scaling, new player, or share-setting change.
+          frame.src = "https://drive.google.com/file/d/" + encodeURIComponent(video.driveId) + "/preview";
+        } catch (e) {
+          title.textContent = "ยังเปิดการทดสอบไม่ได้";
+          error.textContent = e instanceof Error ? e.message : "อ่านรายการคลิปไม่สำเร็จ";
+          error.hidden = false;
+        }
+        showDiagnostics();
+      }
+      load();
+    })();
+  </script>
+</body>
+</html>
