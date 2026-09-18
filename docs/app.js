@@ -14,7 +14,7 @@
 
   // LC-UI-LOCK-R3: behavior-only patch. Existing render functions/styles/text are preserved.
   const runtime = {
-    build: "LC-UI-LOCK-R3",
+    build: "LC-UI-LOCK-R3-MOBILE",
     liffStatus: "not-started",
     canWriteUrl: false,
     pendingParams: {},
@@ -211,7 +211,59 @@
 
   function stopPlayer() {
     const player = $("player");
-    if (player) player.src = "about:blank";
+    if (!player) return;
+    player.removeAttribute("data-mobile-pending");
+    player.src = "about:blank";
+  }
+
+  function isSmallPlayerViewport() {
+    const vv = window.visualViewport;
+    const width = vv && Number.isFinite(vv.width) ? vv.width : window.innerWidth;
+    return Number(width || 0) <= 700;
+  }
+
+  function loadDrivePreviewForCurrentVideo(player, preview, videoId) {
+    if (!player) return;
+
+    // Desktop/tablet stays on the original R3 loading path.
+    if (!isSmallPlayerViewport()) {
+      if (player.getAttribute("src") !== preview) player.src = preview;
+      return;
+    }
+
+    // MOBILE ONLY:
+    // Drive's embedded player has a known mobile control-layout regression.
+    // Avoid navigating the iframe while its modal is display:none. First expose
+    // the existing modal, let WebKit calculate its real size, then navigate the
+    // SAME iframe to /preview. No visible UI/CSS is changed.
+    const modal = $("videoModal");
+    if (!modal) {
+      if (player.getAttribute("src") !== preview) player.src = preview;
+      return;
+    }
+
+    modal.classList.remove("hidden");
+    player.setAttribute("data-mobile-pending", videoId);
+    player.src = "about:blank";
+
+    const commitLoad = () => {
+      if (state.currentVideoId !== videoId) return;
+      if (modal.classList.contains("hidden")) return;
+      if (player.getAttribute("data-mobile-pending") !== videoId) return;
+
+      const rect = player.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) {
+        setTimeout(commitLoad, 40);
+        return;
+      }
+
+      player.removeAttribute("data-mobile-pending");
+      player.src = preview;
+    };
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(commitLoad);
+    });
   }
 
   function openOutsideLine(videoId) {
@@ -498,7 +550,7 @@
       const preview = drivePreview(v.driveId);
       // This permission applies to the iframe; it does not force video autoplay.
       player.setAttribute("allow", "autoplay; encrypted-media; fullscreen");
-      if (player.getAttribute("src") !== preview) player.src = preview;
+      loadDrivePreviewForCurrentVideo(player, preview, v.id);
     }
 
     const topicLabel = (getCategories().find(c => c.key === state.topic)?.label) || state.topic || "";
