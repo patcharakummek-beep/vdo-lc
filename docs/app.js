@@ -14,7 +14,7 @@
 
   // LC-UI-LOCK-R3: behavior-only patch. Existing render functions/styles/text are preserved.
   const runtime = {
-    build: "LC-NATIVE-PLAYER-R5.1",
+    build: "LC-UI-LOCK-R3",
     liffStatus: "not-started",
     canWriteUrl: false,
     pendingParams: {},
@@ -209,62 +209,9 @@
     return typeof id === "string" && /^[A-Za-z0-9_-]{10,200}$/.test(id);
   }
 
-  // Keep the existing outer iframe/UI, but avoid Google's broken mobile /preview controls.
-  // The iframe hosts a native HTML5 video element with iOS inline playback.
-  function driveRawMediaUrls(driveId) {
-    const id = encodeURIComponent(driveId);
-    return [
-      "https://drive.usercontent.google.com/download?id=" + id + "&export=download&confirm=t",
-      "https://drive.google.com/uc?export=download&id=" + id + "&confirm=t"
-    ];
-  }
-
-  function nativePlayerDocument(driveId) {
-    const urls = driveRawMediaUrls(driveId);
-    const fallback = drivePreview(driveId);
-    const poster = "https://drive.google.com/thumbnail?id=" + encodeURIComponent(driveId) + "&sz=w1200";
-    const q = JSON.stringify;
-    return `<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}
-video{display:block;width:100%;height:100%;object-fit:contain;background:#000}
-</style></head><body>
-<video id="lcVideo" controls playsinline webkit-playsinline preload="metadata"
-  disablepictureinpicture controlslist="nodownload noremoteplayback" poster=${q(poster)}>
-  <source src=${q(urls[0])} type="video/mp4">
-  <source src=${q(urls[1])} type="video/mp4">
-</video>
-<script>
-(function(){
-  var v=document.getElementById("lcVideo"), done=false;
-  function fallback(){
-    if(done) return;
-    done=true;
-    location.replace(${q(fallback)});
-  }
-  v.addEventListener("error", fallback, {once:true});
-})();
-<\/script></body></html>`;
-  }
-
-  function loadPlayer(driveId) {
-    const player = $("player");
-    if (!player || !validDriveId(driveId)) return;
-    if (player.dataset.mediaId === driveId && player.getAttribute("srcdoc")) return;
-    player.setAttribute("allow", "autoplay; encrypted-media; fullscreen");
-    player.setAttribute("allowfullscreen", "");
-    player.dataset.mediaId = driveId;
-    player.removeAttribute("src");
-    player.srcdoc = nativePlayerDocument(driveId);
-  }
-
   function stopPlayer() {
     const player = $("player");
-    if (!player) return;
-    player.removeAttribute("srcdoc");
-    player.removeAttribute("data-media-id");
-    player.src = "about:blank";
+    if (player) player.src = "about:blank";
   }
 
   function openOutsideLine(videoId) {
@@ -294,77 +241,30 @@ video{display:block;width:100%;height:100%;object-fit:contain;background:#000}
     if (event && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) return;
     if (event) event.preventDefault();
     if (runtime.fullPending) return;
-
     const id = state.currentVideoId;
-    const player = $("player");
-    if (!id || !player || $("videoModal")?.classList.contains("hidden")) return;
-
-    runtime.fullPending = true;
-
-    try {
-      // iPhone/WebKit: fullscreen must be requested on the VIDEO element itself.
-      // The player lives in srcdoc, so its video element is same-origin and reachable.
-      const innerVideo = player.contentDocument?.getElementById("lcVideo");
-
-      if (innerVideo) {
-        // Apple documents webkitEnterFullscreen() specifically for HTMLVideoElement.
-        if (typeof innerVideo.webkitEnterFullscreen === "function") {
-          try {
-            innerVideo.webkitEnterFullscreen();
-            runtime.fullResult = "ios-video-webkit-fullscreen";
-            runtime.fullPending = false;
-            return;
-          } catch (e) {
-            runtime.fullResult = "ios-video-webkit-rejected";
-          }
-        }
-
-        if (typeof innerVideo.requestFullscreen === "function") {
-          try {
-            const r = innerVideo.requestFullscreen();
-            Promise.resolve(r).then(() => {
-              runtime.fullResult = "video-requestfullscreen-resolved";
-            }).catch(() => {
-              runtime.fullResult = "video-requestfullscreen-rejected";
-              openOutsideLine(id);
-            }).finally(() => {
-              runtime.fullPending = false;
-            });
-            return;
-          } catch (e) {
-            runtime.fullResult = "video-requestfullscreen-error";
-          }
-        }
-      }
-
-      // Non-iPhone fallback: preserve the old wrapper fullscreen path.
-      const box = player.parentElement;
-      const standard = !!box && typeof box.requestFullscreen === "function" && document.fullscreenEnabled !== false;
-      const webkit = !!box && typeof box.webkitRequestFullscreen === "function" && document.webkitFullscreenEnabled !== false;
-
-      if (standard || webkit) {
-        try {
-          const r = standard ? box.requestFullscreen() : box.webkitRequestFullscreen();
-          Promise.resolve(r).then(() => {
-            runtime.fullResult = "wrapper-fullscreen-resolved";
-          }).catch(() => {
-            runtime.fullResult = "wrapper-fullscreen-rejected";
-            openOutsideLine(id);
-          }).finally(() => {
-            runtime.fullPending = false;
-          });
-          return;
-        } catch (e) {
-          runtime.fullResult = "wrapper-fullscreen-error";
-        }
-      }
-
-      runtime.fullResult = "fullscreen-unavailable";
-      runtime.fullPending = false;
+    const box = $("player")?.parentElement;
+    if (!id || !box || $("videoModal")?.classList.contains("hidden")) return;
+    const standard = typeof box.requestFullscreen === "function" && document.fullscreenEnabled !== false;
+    const webkit = typeof box.webkitRequestFullscreen === "function" && document.webkitFullscreenEnabled !== false;
+    if (!standard && !webkit) {
+      runtime.fullResult = "native-unavailable";
       openOutsideLine(id);
+      return;
+    }
+    runtime.fullPending = true;
+    try {
+      // Request the SAME wrapper and iframe, including the existing watermark.
+      // Never change styles, dimensions, labels, or recreate the iframe here.
+      const result = standard ? box.requestFullscreen() : box.webkitRequestFullscreen();
+      Promise.resolve(result).then(() => {
+        runtime.fullResult = "native-request-resolved";
+      }).catch(() => {
+        runtime.fullResult = "native-rejected";
+        openOutsideLine(id);
+      }).finally(() => { runtime.fullPending = false; });
     } catch (e) {
       runtime.fullPending = false;
-      runtime.fullResult = "fullscreen-unexpected-error";
+      runtime.fullResult = "native-error";
       openOutsideLine(id);
     }
   }
@@ -593,7 +493,13 @@ video{display:block;width:100%;height:100%;object-fit:contain;background:#000}
     const noteEl = $("videoNote");
     if (noteEl) noteEl.textContent = v.note || "";
 
-    loadPlayer(v.driveId);
+    const player = $("player");
+    if (player) {
+      const preview = drivePreview(v.driveId);
+      // This permission applies to the iframe; it does not force video autoplay.
+      player.setAttribute("allow", "autoplay; encrypted-media; fullscreen");
+      if (player.getAttribute("src") !== preview) player.src = preview;
+    }
 
     const topicLabel = (getCategories().find(c => c.key === state.topic)?.label) || state.topic || "";
     setWatermark(`CONFIDENTIAL • ${topicLabel} • ห้ามส่งต่อ`);
