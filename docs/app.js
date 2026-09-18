@@ -14,7 +14,7 @@
 
   // LC-UI-LOCK-R3: behavior-only patch. Existing render functions/styles/text are preserved.
   const runtime = {
-    build: "LC-NATIVE-PLAYER-R5",
+    build: "LC-NATIVE-PLAYER-R5.1",
     liffStatus: "not-started",
     canWriteUrl: false,
     pendingParams: {},
@@ -294,38 +294,77 @@ video{display:block;width:100%;height:100%;object-fit:contain;background:#000}
     if (event && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) return;
     if (event) event.preventDefault();
     if (runtime.fullPending) return;
+
     const id = state.currentVideoId;
-    const box = $("player")?.parentElement;
-    if (!id || !box || $("videoModal")?.classList.contains("hidden")) return;
-    const standard = typeof box.requestFullscreen === "function" && document.fullscreenEnabled !== false;
-    const webkit = typeof box.webkitRequestFullscreen === "function" && document.webkitFullscreenEnabled !== false;
-    if (!standard && !webkit) {
-      try {
-        const innerVideo = $("player")?.contentDocument?.getElementById("lcVideo");
-        if (innerVideo && typeof innerVideo.webkitEnterFullscreen === "function") {
-          innerVideo.webkitEnterFullscreen();
-          runtime.fullResult = "ios-native-video";
-          return;
-        }
-      } catch (e) {}
-      runtime.fullResult = "native-unavailable";
-      openOutsideLine(id);
-      return;
-    }
+    const player = $("player");
+    if (!id || !player || $("videoModal")?.classList.contains("hidden")) return;
+
     runtime.fullPending = true;
+
     try {
-      // Request the SAME wrapper and iframe, including the existing watermark.
-      // Never change styles, dimensions, labels, or recreate the iframe here.
-      const result = standard ? box.requestFullscreen() : box.webkitRequestFullscreen();
-      Promise.resolve(result).then(() => {
-        runtime.fullResult = "native-request-resolved";
-      }).catch(() => {
-        runtime.fullResult = "native-rejected";
-        openOutsideLine(id);
-      }).finally(() => { runtime.fullPending = false; });
+      // iPhone/WebKit: fullscreen must be requested on the VIDEO element itself.
+      // The player lives in srcdoc, so its video element is same-origin and reachable.
+      const innerVideo = player.contentDocument?.getElementById("lcVideo");
+
+      if (innerVideo) {
+        // Apple documents webkitEnterFullscreen() specifically for HTMLVideoElement.
+        if (typeof innerVideo.webkitEnterFullscreen === "function") {
+          try {
+            innerVideo.webkitEnterFullscreen();
+            runtime.fullResult = "ios-video-webkit-fullscreen";
+            runtime.fullPending = false;
+            return;
+          } catch (e) {
+            runtime.fullResult = "ios-video-webkit-rejected";
+          }
+        }
+
+        if (typeof innerVideo.requestFullscreen === "function") {
+          try {
+            const r = innerVideo.requestFullscreen();
+            Promise.resolve(r).then(() => {
+              runtime.fullResult = "video-requestfullscreen-resolved";
+            }).catch(() => {
+              runtime.fullResult = "video-requestfullscreen-rejected";
+              openOutsideLine(id);
+            }).finally(() => {
+              runtime.fullPending = false;
+            });
+            return;
+          } catch (e) {
+            runtime.fullResult = "video-requestfullscreen-error";
+          }
+        }
+      }
+
+      // Non-iPhone fallback: preserve the old wrapper fullscreen path.
+      const box = player.parentElement;
+      const standard = !!box && typeof box.requestFullscreen === "function" && document.fullscreenEnabled !== false;
+      const webkit = !!box && typeof box.webkitRequestFullscreen === "function" && document.webkitFullscreenEnabled !== false;
+
+      if (standard || webkit) {
+        try {
+          const r = standard ? box.requestFullscreen() : box.webkitRequestFullscreen();
+          Promise.resolve(r).then(() => {
+            runtime.fullResult = "wrapper-fullscreen-resolved";
+          }).catch(() => {
+            runtime.fullResult = "wrapper-fullscreen-rejected";
+            openOutsideLine(id);
+          }).finally(() => {
+            runtime.fullPending = false;
+          });
+          return;
+        } catch (e) {
+          runtime.fullResult = "wrapper-fullscreen-error";
+        }
+      }
+
+      runtime.fullResult = "fullscreen-unavailable";
+      runtime.fullPending = false;
+      openOutsideLine(id);
     } catch (e) {
       runtime.fullPending = false;
-      runtime.fullResult = "native-error";
+      runtime.fullResult = "fullscreen-unexpected-error";
       openOutsideLine(id);
     }
   }
