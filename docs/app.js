@@ -14,7 +14,7 @@
 
   // LC-UI-LOCK-R3: behavior-only patch. Existing render functions/styles/text are preserved.
   const runtime = {
-    build: "LC-UI-LOCK-R3",
+    build: "LC-NATIVE-PLAYER-R5",
     liffStatus: "not-started",
     canWriteUrl: false,
     pendingParams: {},
@@ -209,9 +209,62 @@
     return typeof id === "string" && /^[A-Za-z0-9_-]{10,200}$/.test(id);
   }
 
+  // Keep the existing outer iframe/UI, but avoid Google's broken mobile /preview controls.
+  // The iframe hosts a native HTML5 video element with iOS inline playback.
+  function driveRawMediaUrls(driveId) {
+    const id = encodeURIComponent(driveId);
+    return [
+      "https://drive.usercontent.google.com/download?id=" + id + "&export=download&confirm=t",
+      "https://drive.google.com/uc?export=download&id=" + id + "&confirm=t"
+    ];
+  }
+
+  function nativePlayerDocument(driveId) {
+    const urls = driveRawMediaUrls(driveId);
+    const fallback = drivePreview(driveId);
+    const poster = "https://drive.google.com/thumbnail?id=" + encodeURIComponent(driveId) + "&sz=w1200";
+    const q = JSON.stringify;
+    return `<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}
+video{display:block;width:100%;height:100%;object-fit:contain;background:#000}
+</style></head><body>
+<video id="lcVideo" controls playsinline webkit-playsinline preload="metadata"
+  disablepictureinpicture controlslist="nodownload noremoteplayback" poster=${q(poster)}>
+  <source src=${q(urls[0])} type="video/mp4">
+  <source src=${q(urls[1])} type="video/mp4">
+</video>
+<script>
+(function(){
+  var v=document.getElementById("lcVideo"), done=false;
+  function fallback(){
+    if(done) return;
+    done=true;
+    location.replace(${q(fallback)});
+  }
+  v.addEventListener("error", fallback, {once:true});
+})();
+<\/script></body></html>`;
+  }
+
+  function loadPlayer(driveId) {
+    const player = $("player");
+    if (!player || !validDriveId(driveId)) return;
+    if (player.dataset.mediaId === driveId && player.getAttribute("srcdoc")) return;
+    player.setAttribute("allow", "autoplay; encrypted-media; fullscreen");
+    player.setAttribute("allowfullscreen", "");
+    player.dataset.mediaId = driveId;
+    player.removeAttribute("src");
+    player.srcdoc = nativePlayerDocument(driveId);
+  }
+
   function stopPlayer() {
     const player = $("player");
-    if (player) player.src = "about:blank";
+    if (!player) return;
+    player.removeAttribute("srcdoc");
+    player.removeAttribute("data-media-id");
+    player.src = "about:blank";
   }
 
   function openOutsideLine(videoId) {
@@ -247,6 +300,14 @@
     const standard = typeof box.requestFullscreen === "function" && document.fullscreenEnabled !== false;
     const webkit = typeof box.webkitRequestFullscreen === "function" && document.webkitFullscreenEnabled !== false;
     if (!standard && !webkit) {
+      try {
+        const innerVideo = $("player")?.contentDocument?.getElementById("lcVideo");
+        if (innerVideo && typeof innerVideo.webkitEnterFullscreen === "function") {
+          innerVideo.webkitEnterFullscreen();
+          runtime.fullResult = "ios-native-video";
+          return;
+        }
+      } catch (e) {}
       runtime.fullResult = "native-unavailable";
       openOutsideLine(id);
       return;
@@ -493,13 +554,7 @@
     const noteEl = $("videoNote");
     if (noteEl) noteEl.textContent = v.note || "";
 
-    const player = $("player");
-    if (player) {
-      const preview = drivePreview(v.driveId);
-      // This permission applies to the iframe; it does not force video autoplay.
-      player.setAttribute("allow", "autoplay; encrypted-media; fullscreen");
-      if (player.getAttribute("src") !== preview) player.src = preview;
-    }
+    loadPlayer(v.driveId);
 
     const topicLabel = (getCategories().find(c => c.key === state.topic)?.label) || state.topic || "";
     setWatermark(`CONFIDENTIAL • ${topicLabel} • ห้ามส่งต่อ`);
