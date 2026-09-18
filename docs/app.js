@@ -14,7 +14,7 @@
 
   // LC-UI-LOCK-R3: behavior-only patch. Existing render functions/styles/text are preserved.
   const runtime = {
-    build: "LC-UI-LOCK-R3-MOBILE",
+    build: "LC-UI-LOCK-R3-MOBILE-REFLOW",
     liffStatus: "not-started",
     canWriteUrl: false,
     pendingParams: {},
@@ -225,17 +225,18 @@
   function loadDrivePreviewForCurrentVideo(player, preview, videoId) {
     if (!player) return;
 
-    // Desktop/tablet stays on the original R3 loading path.
+    // Desktop/tablet remains exactly on the stable R3 path.
     if (!isSmallPlayerViewport()) {
       if (player.getAttribute("src") !== preview) player.src = preview;
       return;
     }
 
     // MOBILE ONLY:
-    // Drive's embedded player has a known mobile control-layout regression.
-    // Avoid navigating the iframe while its modal is display:none. First expose
-    // the existing modal, let WebKit calculate its real size, then navigate the
-    // SAME iframe to /preview. No visible UI/CSS is changed.
+    // 1) expose the existing modal before loading Drive
+    // 2) load the same /preview player
+    // 3) after Drive finishes loading, make an imperceptible 1px viewport nudge
+    //    and restore immediately. This forces the cross-origin player to receive
+    //    a real iframe resize without changing our outer UI/layout.
     const modal = $("videoModal");
     if (!modal) {
       if (player.getAttribute("src") !== preview) player.src = preview;
@@ -245,6 +246,36 @@
     modal.classList.remove("hidden");
     player.setAttribute("data-mobile-pending", videoId);
     player.src = "about:blank";
+
+    const nudgeViewport = () => {
+      if (state.currentVideoId !== videoId) return;
+      if (modal.classList.contains("hidden")) return;
+      if (!isSmallPlayerViewport()) return;
+
+      const rect = player.getBoundingClientRect();
+      if (rect.width < 10 || rect.height < 10) return;
+
+      // No CSS file or outer frame dimensions are changed.
+      // One physical CSS pixel is removed for one animation frame and restored.
+      const priorWidth = player.style.width;
+      player.style.width = "calc(100% - 1px)";
+      requestAnimationFrame(() => {
+        if (state.currentVideoId !== videoId) return;
+        player.style.width = priorWidth || "100%";
+      });
+    };
+
+    const onPlayerLoad = () => {
+      if (state.currentVideoId !== videoId) return;
+      // Reflow once after preview load and again around the time Drive swaps
+      // from poster state into its playback UI. These are viewport nudges only.
+      setTimeout(nudgeViewport, 80);
+      setTimeout(nudgeViewport, 700);
+      setTimeout(nudgeViewport, 1800);
+      setTimeout(nudgeViewport, 3200);
+    };
+
+    player.addEventListener("load", onPlayerLoad, { once: true });
 
     const commitLoad = () => {
       if (state.currentVideoId !== videoId) return;
