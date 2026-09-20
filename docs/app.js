@@ -14,7 +14,7 @@
 
   // LC-UI-LOCK-R3: behavior-only patch. Existing render functions/styles/text are preserved.
   const runtime = {
-    build: "LC-UI-LOCK-R3",
+    build: "LC-UI-LOCK-R3-MOBILE-STABLE",
     liffStatus: "not-started",
     canWriteUrl: false,
     pendingParams: {},
@@ -209,7 +209,283 @@
     return typeof id === "string" && /^[A-Za-z0-9_-]{10,200}$/.test(id);
   }
 
+  function isSmallStableViewport() {
+    const vv = window.visualViewport;
+    const width = vv && Number.isFinite(vv.width) ? vv.width : window.innerWidth;
+    return Number(width || 0) <= 700;
+  }
+
+  function directMediaUrl(driveId, fallback) {
+    const id = encodeURIComponent(driveId);
+    return fallback
+      ? "https://drive.google.com/uc?export=download&id=" + id
+      : "https://drive.usercontent.google.com/download?id=" + id + "&export=download&confirm=t";
+  }
+
+  function formatMediaTime(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+    const total = Math.floor(seconds);
+    const m = Math.floor(total / 60);
+    const s = String(total % 60).padStart(2, "0");
+    return m + ":" + s;
+  }
+
+  function destroyMobileStablePlayer() {
+    const shell = document.getElementById("mobileStablePlayer");
+    if (shell) {
+      const video = shell.querySelector("video");
+      if (video) {
+        try { video.pause(); } catch (e) {}
+        video.removeAttribute("src");
+        try { video.load(); } catch (e) {}
+      }
+      shell.remove();
+    }
+    const iframe = $("player");
+    if (iframe) iframe.style.display = "";
+  }
+
+  function createMobileStablePlayer(v) {
+    const iframe = $("player");
+    const frame = iframe && iframe.parentElement;
+    if (!iframe || !frame || !v || !validDriveId(v.driveId)) return false;
+
+    destroyMobileStablePlayer();
+    iframe.style.display = "none";
+
+    const shell = document.createElement("div");
+    shell.id = "mobileStablePlayer";
+    shell.style.position = "absolute";
+    shell.style.inset = "0";
+    shell.style.background = "#000";
+    shell.style.overflow = "hidden";
+    shell.style.zIndex = "2";
+    shell.style.touchAction = "manipulation";
+
+    const video = document.createElement("video");
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+    video.preload = "metadata";
+    video.disablePictureInPicture = true;
+    video.style.position = "absolute";
+    video.style.inset = "0";
+    video.style.width = "100%";
+    video.style.height = "100%";
+    video.style.objectFit = "contain";
+    video.style.background = "#000";
+    video.poster = "https://drive.google.com/thumbnail?id=" +
+      encodeURIComponent(v.driveId) + "&sz=w1200";
+
+    const controls = document.createElement("div");
+    controls.style.position = "absolute";
+    controls.style.inset = "0";
+    controls.style.zIndex = "4";
+    controls.style.transition = "opacity .18s ease";
+    controls.style.opacity = "1";
+
+    const center = document.createElement("button");
+    center.type = "button";
+    center.setAttribute("aria-label", "เล่นหรือหยุดวิดีโอ");
+    center.textContent = "▶";
+    center.style.position = "absolute";
+    center.style.left = "50%";
+    center.style.top = "50%";
+    center.style.transform = "translate(-50%,-50%)";
+    center.style.width = "54px";
+    center.style.height = "46px";
+    center.style.border = "0";
+    center.style.borderRadius = "9px";
+    center.style.background = "rgba(0,0,0,.78)";
+    center.style.color = "#fff";
+    center.style.fontSize = "22px";
+    center.style.fontWeight = "800";
+    center.style.display = "flex";
+    center.style.alignItems = "center";
+    center.style.justifyContent = "center";
+    center.style.padding = "0";
+    center.style.cursor = "pointer";
+
+    const full = document.createElement("button");
+    full.type = "button";
+    full.setAttribute("aria-label", "เปิดเต็มจอ");
+    full.textContent = "↗";
+    full.style.position = "absolute";
+    full.style.right = "8px";
+    full.style.top = "8px";
+    full.style.width = "36px";
+    full.style.height = "36px";
+    full.style.border = "0";
+    full.style.borderRadius = "6px";
+    full.style.background = "rgba(0,0,0,.62)";
+    full.style.color = "#fff";
+    full.style.fontSize = "22px";
+    full.style.display = "flex";
+    full.style.alignItems = "center";
+    full.style.justifyContent = "center";
+    full.style.padding = "0";
+
+    const bottom = document.createElement("div");
+    bottom.style.position = "absolute";
+    bottom.style.left = "8px";
+    bottom.style.right = "8px";
+    bottom.style.bottom = "7px";
+    bottom.style.display = "grid";
+    bottom.style.gridTemplateColumns = "42px 1fr auto";
+    bottom.style.alignItems = "center";
+    bottom.style.gap = "8px";
+    bottom.style.padding = "6px 8px";
+    bottom.style.borderRadius = "10px";
+    bottom.style.background = "linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,.72))";
+
+    const playMini = document.createElement("button");
+    playMini.type = "button";
+    playMini.setAttribute("aria-label", "เล่นหรือหยุด");
+    playMini.textContent = "▶";
+    playMini.style.width = "40px";
+    playMini.style.height = "36px";
+    playMini.style.border = "0";
+    playMini.style.background = "transparent";
+    playMini.style.color = "#fff";
+    playMini.style.fontSize = "18px";
+    playMini.style.padding = "0";
+
+    const progress = document.createElement("input");
+    progress.type = "range";
+    progress.min = "0";
+    progress.max = "1000";
+    progress.value = "0";
+    progress.step = "1";
+    progress.setAttribute("aria-label", "ตำแหน่งวิดีโอ");
+    progress.style.width = "100%";
+    progress.style.margin = "0";
+    progress.style.accentColor = "#fff";
+
+    const time = document.createElement("span");
+    time.textContent = "0:00 / 0:00";
+    time.style.color = "#fff";
+    time.style.fontSize = "11px";
+    time.style.fontWeight = "700";
+    time.style.whiteSpace = "nowrap";
+    time.style.textShadow = "0 1px 3px #000";
+
+    bottom.append(playMini, progress, time);
+    controls.append(center, full, bottom);
+    shell.append(video, controls);
+
+    const watermark = $("watermark");
+    if (watermark) frame.insertBefore(shell, watermark);
+    else frame.appendChild(shell);
+
+    let hideTimer = null;
+    let triedFallback = false;
+
+    function showControls(keep) {
+      controls.style.opacity = "1";
+      controls.style.pointerEvents = "auto";
+      if (hideTimer) clearTimeout(hideTimer);
+      if (!keep && !video.paused) {
+        hideTimer = setTimeout(() => {
+          controls.style.opacity = "0";
+          controls.style.pointerEvents = "none";
+        }, 1800);
+      }
+    }
+
+    async function togglePlay() {
+      try {
+        if (video.paused) {
+          await video.play();
+          showControls(false);
+        } else {
+          video.pause();
+          showControls(true);
+        }
+      } catch (e) {
+        showControls(true);
+      }
+    }
+
+    function enterFull() {
+      try {
+        if (typeof video.webkitEnterFullscreen === "function") {
+          video.webkitEnterFullscreen();
+          return;
+        }
+        if (typeof shell.requestFullscreen === "function") {
+          const p = shell.requestFullscreen();
+          if (p && typeof p.catch === "function") p.catch(() => {});
+          return;
+        }
+      } catch (e) {}
+    }
+
+    center.addEventListener("click", (e) => { e.stopPropagation(); togglePlay(); });
+    playMini.addEventListener("click", (e) => { e.stopPropagation(); togglePlay(); });
+    full.addEventListener("click", (e) => { e.stopPropagation(); enterFull(); });
+
+    shell.addEventListener("click", (e) => {
+      if (e.target === progress) return;
+      showControls(video.paused);
+    });
+
+    video.addEventListener("play", () => {
+      center.textContent = "❚❚";
+      playMini.textContent = "❚❚";
+      showControls(false);
+    });
+
+    video.addEventListener("pause", () => {
+      center.textContent = "▶";
+      playMini.textContent = "▶";
+      showControls(true);
+    });
+
+    video.addEventListener("loadedmetadata", () => {
+      time.textContent = "0:00 / " + formatMediaTime(video.duration);
+    });
+
+    video.addEventListener("timeupdate", () => {
+      const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+      if (duration > 0) {
+        progress.value = String(Math.round((video.currentTime / duration) * 1000));
+      }
+      time.textContent = formatMediaTime(video.currentTime) + " / " + formatMediaTime(duration);
+    });
+
+    progress.addEventListener("input", (e) => {
+      e.stopPropagation();
+      const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+      if (duration > 0) video.currentTime = (Number(progress.value) / 1000) * duration;
+      showControls(true);
+    });
+
+    video.addEventListener("ended", () => showControls(true));
+
+    video.addEventListener("error", () => {
+      if (!triedFallback) {
+        triedFallback = true;
+        video.src = directMediaUrl(v.driveId, true);
+        video.load();
+        showControls(true);
+        return;
+      }
+
+      // Final fallback keeps the same modal/frame instead of sending the user away.
+      destroyMobileStablePlayer();
+      iframe.style.display = "";
+      const preview = drivePreview(v.driveId);
+      iframe.setAttribute("allow", "autoplay; encrypted-media; fullscreen");
+      iframe.src = preview;
+    });
+
+    video.src = directMediaUrl(v.driveId, false);
+    video.load();
+    showControls(true);
+    return true;
+  }
+
   function stopPlayer() {
+    destroyMobileStablePlayer();
     const player = $("player");
     if (player) player.src = "about:blank";
   }
@@ -241,9 +517,30 @@
     if (event && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) return;
     if (event) event.preventDefault();
     if (runtime.fullPending) return;
+
     const id = state.currentVideoId;
+    if (!id || $("videoModal")?.classList.contains("hidden")) return;
+
+    const mobileShell = document.getElementById("mobileStablePlayer");
+    const mobileVideo = mobileShell && mobileShell.querySelector("video");
+    if (mobileVideo && isSmallStableViewport()) {
+      try {
+        if (typeof mobileVideo.webkitEnterFullscreen === "function") {
+          mobileVideo.webkitEnterFullscreen();
+          runtime.fullResult = "mobile-stable-video-fullscreen";
+          return;
+        }
+        if (typeof mobileShell.requestFullscreen === "function") {
+          const p = mobileShell.requestFullscreen();
+          if (p && typeof p.catch === "function") p.catch(() => {});
+          runtime.fullResult = "mobile-stable-shell-fullscreen";
+          return;
+        }
+      } catch (e) {}
+    }
+
     const box = $("player")?.parentElement;
-    if (!id || !box || $("videoModal")?.classList.contains("hidden")) return;
+    if (!box) return;
     const standard = typeof box.requestFullscreen === "function" && document.fullscreenEnabled !== false;
     const webkit = typeof box.webkitRequestFullscreen === "function" && document.webkitFullscreenEnabled !== false;
     if (!standard && !webkit) {
@@ -251,10 +548,9 @@
       openOutsideLine(id);
       return;
     }
+
     runtime.fullPending = true;
     try {
-      // Request the SAME wrapper and iframe, including the existing watermark.
-      // Never change styles, dimensions, labels, or recreate the iframe here.
       const result = standard ? box.requestFullscreen() : box.webkitRequestFullscreen();
       Promise.resolve(result).then(() => {
         runtime.fullResult = "native-request-resolved";
@@ -494,9 +790,12 @@
     if (noteEl) noteEl.textContent = v.note || "";
 
     const player = $("player");
-    if (player) {
+    if (isSmallStableViewport()) {
+      createMobileStablePlayer(v);
+    } else if (player) {
       const preview = drivePreview(v.driveId);
-      // This permission applies to the iframe; it does not force video autoplay.
+      // Desktop/tablet remains the original R3 Google Drive player.
+      player.style.display = "";
       player.setAttribute("allow", "autoplay; encrypted-media; fullscreen");
       if (player.getAttribute("src") !== preview) player.src = preview;
     }
