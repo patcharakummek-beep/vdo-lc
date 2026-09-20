@@ -14,7 +14,7 @@
 
   // LC-UI-LOCK-R3: behavior-only patch. Existing render functions/styles/text are preserved.
   const runtime = {
-    build: "LC-UI-LOCK-R3-MOBILE-STABLE",
+    build: "LC-UI-LOCK-R3-MOBILE-STABLE-VIEW",
     liffStatus: "not-started",
     canWriteUrl: false,
     pendingParams: {},
@@ -215,11 +215,14 @@
     return Number(width || 0) <= 700;
   }
 
-  function directMediaUrl(driveId, fallback) {
+  function directMediaUrls(driveId) {
     const id = encodeURIComponent(driveId);
-    return fallback
-      ? "https://drive.google.com/uc?export=download&id=" + id
-      : "https://drive.usercontent.google.com/download?id=" + id + "&export=download&confirm=t";
+    return [
+      "https://drive.usercontent.google.com/download?id=" + id + "&export=view",
+      "https://drive.google.com/uc?export=view&id=" + id,
+      "https://drive.usercontent.google.com/download?id=" + id + "&export=download&confirm=t",
+      "https://drive.google.com/uc?export=download&id=" + id
+    ];
   }
 
   function formatMediaTime(seconds) {
@@ -377,7 +380,8 @@
     else frame.appendChild(shell);
 
     let hideTimer = null;
-    let triedFallback = false;
+    const mediaUrls = directMediaUrls(v.driveId);
+    let mediaUrlIndex = 0;
 
     function showControls(keep) {
       controls.style.opacity = "1";
@@ -462,23 +466,28 @@
     video.addEventListener("ended", () => showControls(true));
 
     video.addEventListener("error", () => {
-      if (!triedFallback) {
-        triedFallback = true;
-        video.src = directMediaUrl(v.driveId, true);
+      if (state.currentVideoId !== v.id) return;
+
+      mediaUrlIndex += 1;
+      if (mediaUrlIndex < mediaUrls.length) {
+        video.src = mediaUrls[mediaUrlIndex];
         video.load();
         showControls(true);
         return;
       }
 
-      // Final fallback keeps the same modal/frame instead of sending the user away.
-      destroyMobileStablePlayer();
-      iframe.style.display = "";
-      const preview = drivePreview(v.driveId);
-      iframe.setAttribute("allow", "autoplay; encrypted-media; fullscreen");
-      iframe.src = preview;
+      // Do NOT silently fall back to the broken mobile /preview player.
+      // Keep the same small-screen UI and stop here so Drive's oversized
+      // controls never reappear over the video.
+      video.removeAttribute("src");
+      video.load();
+      center.textContent = "▶";
+      playMini.textContent = "▶";
+      time.textContent = "เปิดวิดีโอไม่ได้";
+      showControls(true);
     });
 
-    video.src = directMediaUrl(v.driveId, false);
+    video.src = mediaUrls[mediaUrlIndex];
     video.load();
     showControls(true);
     return true;
