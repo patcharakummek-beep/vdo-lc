@@ -14,7 +14,7 @@
 
   // LC-UI-LOCK-R3: behavior-only patch. Existing render functions/styles/text are preserved.
   const runtime = {
-    build: "LC-UI-LOCK-R3-EMERGENCY-MOBILE",
+    build: "LC-UI-LOCK-R3-MOBILE-INLINE",
     liffStatus: "not-started",
     canWriteUrl: false,
     pendingParams: {},
@@ -215,33 +215,95 @@
     return Number(width || 0) <= 700;
   }
 
-  function openMobileDriveViewer(v) {
-    if (!v || !validDriveId(v.driveId)) return false;
-    const url = "https://drive.google.com/file/d/" + encodeURIComponent(v.driveId) + "/view?usp=drivesdk";
+  function mobileDirectUrl(driveId, fallback = false) {
+    const id = encodeURIComponent(driveId);
+    return fallback
+      ? "https://drive.google.com/uc?export=download&id=" + id
+      : "https://drive.usercontent.google.com/download?id=" + id + "&export=download&authuser=0";
+  }
 
-    try {
-      if (runtime.liffStatus === "ready" && window.liff &&
-          typeof window.liff.openWindow === "function") {
-        window.liff.openWindow({ url, external: true });
-        runtime.fullResult = "mobile-drive-external";
-        return true;
+  function ensureMobileInlineVideo() {
+    const frame = $("player")?.parentElement;
+    if (!frame) return null;
+
+    let video = document.getElementById("mobileInlinePlayer");
+    if (!video) {
+      video = document.createElement("video");
+      video.id = "mobileInlinePlayer";
+      video.controls = true;
+      video.playsInline = true;
+      video.setAttribute("playsinline", "");
+      video.setAttribute("webkit-playsinline", "");
+      video.preload = "metadata";
+      video.setAttribute("controlsList", "nodownload noremoteplayback");
+      video.disablePictureInPicture = true;
+      video.style.position = "absolute";
+      video.style.inset = "0";
+      video.style.width = "100%";
+      video.style.height = "100%";
+      video.style.objectFit = "contain";
+      video.style.background = "#000";
+      video.style.zIndex = "3";
+      frame.appendChild(video);
+    }
+    return video;
+  }
+
+  function loadMobileInlineVideo(v) {
+    const iframe = $("player");
+    const video = ensureMobileInlineVideo();
+    if (!iframe || !video || !v || !validDriveId(v.driveId)) return false;
+
+    // Preserve the existing outer UI/frame. Only the inner playback engine changes.
+    iframe.style.display = "none";
+    const wm = $("watermark");
+    if (wm) wm.style.zIndex = "1";
+
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+
+    video.poster = "https://drive.google.com/thumbnail?id=" +
+      encodeURIComponent(v.driveId) + "&sz=w1200";
+
+    let fallbackLevel = 0;
+    video.onerror = () => {
+      if (state.currentVideoId !== v.id) return;
+      if (fallbackLevel === 0) {
+        fallbackLevel = 1;
+        video.src = mobileDirectUrl(v.driveId, true);
+        video.load();
+        return;
       }
-    } catch (e) {
-      console.warn("[LC-EMERGENCY-MOBILE] liff.openWindow unavailable; using direct navigation.");
-    }
+      // Final safety net: if Drive refuses a direct media response on this account,
+      // open the normal Drive viewer instead of leaving a dead player.
+      openOutsideLine(v.id);
+    };
 
-    try {
-      window.location.assign(url);
-      runtime.fullResult = "mobile-drive-navigation";
-      return true;
-    } catch (e) {
-      return false;
-    }
+    video.src = mobileDirectUrl(v.driveId, false);
+    video.load();
+    return true;
   }
 
   function stopPlayer() {
     const player = $("player");
-    if (player) player.src = "about:blank";
+    if (player) {
+      player.style.display = "";
+      player.src = "about:blank";
+    }
+
+    const video = document.getElementById("mobileInlinePlayer");
+    if (video) {
+      video.pause();
+      video.removeAttribute("src");
+      video.removeAttribute("poster");
+      video.onerror = null;
+      video.load();
+      video.remove();
+    }
+
+    const wm = $("watermark");
+    if (wm) wm.style.zIndex = "";
   }
 
   function openOutsideLine(videoId) {
@@ -271,9 +333,35 @@
     if (event && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) return;
     if (event) event.preventDefault();
     if (runtime.fullPending) return;
+
     const id = state.currentVideoId;
+    if (!id || $("videoModal")?.classList.contains("hidden")) return;
+
+    // Small-screen HTML5 player: iPhone fullscreen belongs to HTMLVideoElement.
+    const mobileVideo = document.getElementById("mobileInlinePlayer");
+    if (mobileVideo && isSmallEmergencyViewport()) {
+      try {
+        if (typeof mobileVideo.webkitEnterFullscreen === "function") {
+          mobileVideo.webkitEnterFullscreen();
+          runtime.fullResult = "mobile-video-webkit-fullscreen";
+          return;
+        }
+        if (typeof mobileVideo.requestFullscreen === "function") {
+          const result = mobileVideo.requestFullscreen();
+          Promise.resolve(result).catch(() => openOutsideLine(id));
+          runtime.fullResult = "mobile-video-requestfullscreen";
+          return;
+        }
+      } catch (e) {
+        runtime.fullResult = "mobile-video-fullscreen-error";
+        openOutsideLine(id);
+        return;
+      }
+    }
+
+    // Desktop/tablet remains the existing R3 fullscreen behavior.
     const box = $("player")?.parentElement;
-    if (!id || !box || $("videoModal")?.classList.contains("hidden")) return;
+    if (!box) return;
     const standard = typeof box.requestFullscreen === "function" && document.fullscreenEnabled !== false;
     const webkit = typeof box.webkitRequestFullscreen === "function" && document.webkitFullscreenEnabled !== false;
     if (!standard && !webkit) {
@@ -281,10 +369,9 @@
       openOutsideLine(id);
       return;
     }
+
     runtime.fullPending = true;
     try {
-      // Request the SAME wrapper and iframe, including the existing watermark.
-      // Never change styles, dimensions, labels, or recreate the iframe here.
       const result = standard ? box.requestFullscreen() : box.webkitRequestFullscreen();
       Promise.resolve(result).then(() => {
         runtime.fullResult = "native-request-resolved";
@@ -507,13 +594,6 @@
 
     updateUrlParams({ topic: state.topic, v: v.id });
 
-    // Emergency mobile path for the 2026 Drive /preview regression:
-    // keep the catalog/UI unchanged, but do not embed the broken mobile player.
-    // Desktop/tablet continues to use the original R3 modal and iframe.
-    if (isSmallEmergencyViewport()) {
-      if (openMobileDriveViewer(v)) return;
-    }
-
     const titleEl = $("videoTitle");
     if (titleEl) titleEl.textContent = cleanTitle(v.title);
 
@@ -531,9 +611,12 @@
     if (noteEl) noteEl.textContent = v.note || "";
 
     const player = $("player");
-    if (player) {
+    if (isSmallEmergencyViewport()) {
+      loadMobileInlineVideo(v);
+    } else if (player) {
       const preview = drivePreview(v.driveId);
-      // This permission applies to the iframe; it does not force video autoplay.
+      // Desktop/tablet: original R3 Drive preview path.
+      player.style.display = "";
       player.setAttribute("allow", "autoplay; encrypted-media; fullscreen");
       if (player.getAttribute("src") !== preview) player.src = preview;
     }
