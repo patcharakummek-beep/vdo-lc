@@ -752,3 +752,25 @@ body{
   background: rgba(255, 140, 0, .08);
   color: var(--text);
 }
+
+
+/* LC mobile watermark-behind diagnostic 2026-09-20 */
+@media (max-width: 700px){
+  /*
+    Keep the existing 16:9 frame and player dimensions unchanged.
+    On small screens only, place the watermark layer behind the Drive iframe
+    and disable blend compositing so it cannot affect the rendered video layer.
+  */
+  .ratio16x9{
+    isolation:isolate;
+  }
+
+  .ratio16x9 iframe{
+    z-index:2;
+  }
+
+  .ratio16x9 .watermark{
+    z-index:1;
+    mix-blend-mode:normal;
+  }
+}
