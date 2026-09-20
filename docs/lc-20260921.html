@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#06C755" />
+  <title>คลังคลิปผู้ป่วยผ่าตัดถุงน้ำดี (LC)</title>
+
+  <link rel="stylesheet" href="lc-style-20260921.css" />
+  <!-- LIFF SDK (optional) -->
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand__title" id="appTitle">คลังคลิปผู้ป่วยผ่าตัดถุงน้ำดี (LC)</div>
+      <div class="brand__sub" id="subtitle">กำลังโหลด…</div>
+    </div>
+
+    <button class="helpBtn" id="btnHelp" type="button" aria-label="วิธีใช้">
+      <span class="helpBtn__icon" aria-hidden="true">?</span>
+      <span class="helpBtn__text">วิธีใช้</span>
+    </button>
+  </header>
+
+  <main class="container">
+    <!-- HERO / DASHBOARD -->
+    <section class="hero" id="hero">
+      <div class="heroBlob" aria-hidden="true"></div>
+      <div class="heroGrid" aria-hidden="true"></div>
+      <div class="heroBgIcon" id="heroBgIcon" aria-hidden="true"></div>
+
+      <div class="heroTop">
+        <div class="topic">
+          <div class="topicChip" id="topicChip" aria-label="หัวข้อ">
+            <span class="topicChip__icon" id="topicEmoji" aria-hidden="true">🎬</span>
+            <span class="topicChip__text" id="topicLabel">หัวข้อ</span>
+          </div>
+        </div>
+
+        <div class="ring" id="progressRing" aria-label="ความคืบหน้า">
+          <div class="ring__inner">
+            <div class="ring__value" id="ringValue">0%</div>
+            <div class="ring__caption">สำเร็จ</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="heroMid">
+        <div class="progressRow">
+          <div class="progressText" id="progressText">ดูแล้ว 0/0 (เหลือ 0)</div>
+
+          <div class="progressPills">
+            <div class="pill">
+              <span class="pill__k">ดูแล้ว</span>
+              <span class="pill__v" id="pillWatchedVal">0</span>
+            </div>
+            <div class="pill">
+              <span class="pill__k">เหลือ</span>
+              <span class="pill__v" id="pillRemainVal">0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bar" role="progressbar" aria-label="ความคืบหน้า" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBar">
+          <div class="bar__fill" id="progressFill"></div>
+          <div class="bar__shine" aria-hidden="true"></div>
+          <div class="bar__glow" aria-hidden="true"></div>
+        </div>
+
+        <div class="heroActions">
+          <button id="btnStart" class="btn btn--ghost" type="button">เริ่มที่นี่</button>
+          <button id="btnContinue" class="btn btn--primary" type="button">ดูต่อ</button>
+        </div>
+      </div>
+
+      <div id="statusBox" class="status hidden"></div>
+    </section>
+
+    <!-- LIST -->
+    <section class="listSection">
+      <div class="sectionHeader">
+        <div class="sectionHeader__title">รายการคลิป</div>
+        <div class="sectionHeader__meta" id="countLabel"></div>
+      </div>
+
+      <div id="videoList" class="grid"></div>
+    </section>
+  </main>
+
+  <!-- HELP MODAL -->
+  <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="วิธีใช้">
+    <div class="modalCard">
+      <div class="modalHeader">
+        <div class="modalTitle">วิธีใช้ (สั้นมาก)</div>
+        <button id="helpClose" class="helpBtn" type="button">ปิด</button>
+      </div>
+
+      <div class="modalBody">
+        <ol class="helpList">
+          <li>เลือกหัวข้อจากเมนู A/B/C ใน LINE</li>
+          <li>กดปุ่ม <b>ดูคลิป</b> ใต้คลิปที่อยากดู</li>
+          <li>ในหน้าวิดีโอ ใช้ <b>ก่อนหน้า / ถัดไป</b> เพื่อไล่ตามลำดับ</li>
+          <li>กด <b>ดูต่อ</b> เพื่อกลับไปคลิปล่าสุดของหัวข้อนี้</li>
+        </ol>
+
+        <div class="note note--warn">
+          <b>สำคัญ:</b> วิดีโอนี้ใช้เพื่อการดูแลผู้ป่วยเท่านั้น<br/>
+          <b>ห้ามส่งต่อ / ห้ามแชร์ลิงก์ / ห้ามบันทึกหน้าจอ</b>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIDEO MODAL -->
+  <div id="videoModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="วิดีโอ">
+    <div class="modalCard modalCard--video">
+      <div class="modalHeader">
+        <div>
+          <div id="videoTitle" class="modalTitle"></div>
+          <div id="videoMeta" class="modalMeta"></div>
+        </div>
+        <button id="videoClose" class="helpBtn" type="button">ปิด</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="ratio16x9">
+          <iframe id="player" src="about:blank" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+          <div id="watermark" class="watermark" aria-hidden="true"></div>
+        </div>
+
+        <div id="videoNote" class="videoNote"></div>
+
+        <div class="modalFooter">
+          <div class="navRow">
+            <button id="btnPrev" class="btn btn--ghost" type="button">ก่อนหน้า</button>
+            <button id="btnNext" class="btn btn--ghost" type="button">ถัดไป</button>
+          </div>
+
+          <a id="btnOpenFull" class="btn btn--primary btn--full" href="#" target="_blank" rel="noopener">
+            เปิดเต็มจอ
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.APP_CONFIG = {
+      LIFF_ID: "2008883123-zMHF8DkH",
+      DATA_URL: "data.json"
+    };
+  </script>
+  <script src="lc-app-20260921.js"></script>
+</body>
+</html>
