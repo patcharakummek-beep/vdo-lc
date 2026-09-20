@@ -14,7 +14,7 @@
 
   // LC-UI-LOCK-R3: behavior-only patch. Existing render functions/styles/text are preserved.
   const runtime = {
-    build: "LC-UI-LOCK-R3-MOBILE-STABLE-VIEW",
+    build: "LC-UI-LOCK-R3-MOBILE-STABLE-PREVIEW",
     liffStatus: "not-started",
     canWriteUrl: false,
     pendingParams: {},
@@ -218,8 +218,11 @@
   function directMediaUrls(driveId) {
     const id = encodeURIComponent(driveId);
     return [
-      "https://drive.usercontent.google.com/download?id=" + id + "&export=view",
+      // First choice for small-screen inline playback.
+      // This URL is used as the src of our own <video>, not as a Drive iframe.
+      "https://drive.google.com/uc?export=preview&id=" + id,
       "https://drive.google.com/uc?export=view&id=" + id,
+      "https://drive.usercontent.google.com/download?id=" + id + "&export=view",
       "https://drive.usercontent.google.com/download?id=" + id + "&export=download&confirm=t",
       "https://drive.google.com/uc?export=download&id=" + id
     ];
