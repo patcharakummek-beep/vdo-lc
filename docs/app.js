@@ -14,7 +14,7 @@
 
   // LC-UI-LOCK-R3: behavior-only patch. Existing render functions/styles/text are preserved.
   const runtime = {
-    build: "LC-UI-LOCK-R3",
+    build: "LC-UI-LOCK-R3-EMERGENCY-MOBILE",
     liffStatus: "not-started",
     canWriteUrl: false,
     pendingParams: {},
@@ -207,6 +207,36 @@
 
   function validDriveId(id) {
     return typeof id === "string" && /^[A-Za-z0-9_-]{10,200}$/.test(id);
+  }
+
+  function isSmallEmergencyViewport() {
+    const vv = window.visualViewport;
+    const width = vv && Number.isFinite(vv.width) ? vv.width : window.innerWidth;
+    return Number(width || 0) <= 700;
+  }
+
+  function openMobileDriveViewer(v) {
+    if (!v || !validDriveId(v.driveId)) return false;
+    const url = "https://drive.google.com/file/d/" + encodeURIComponent(v.driveId) + "/view?usp=drivesdk";
+
+    try {
+      if (runtime.liffStatus === "ready" && window.liff &&
+          typeof window.liff.openWindow === "function") {
+        window.liff.openWindow({ url, external: true });
+        runtime.fullResult = "mobile-drive-external";
+        return true;
+      }
+    } catch (e) {
+      console.warn("[LC-EMERGENCY-MOBILE] liff.openWindow unavailable; using direct navigation.");
+    }
+
+    try {
+      window.location.assign(url);
+      runtime.fullResult = "mobile-drive-navigation";
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   function stopPlayer() {
@@ -476,6 +506,13 @@
     saveProgress(p);
 
     updateUrlParams({ topic: state.topic, v: v.id });
+
+    // Emergency mobile path for the 2026 Drive /preview regression:
+    // keep the catalog/UI unchanged, but do not embed the broken mobile player.
+    // Desktop/tablet continues to use the original R3 modal and iframe.
+    if (isSmallEmergencyViewport()) {
+      if (openMobileDriveViewer(v)) return;
+    }
 
     const titleEl = $("videoTitle");
     if (titleEl) titleEl.textContent = cleanTitle(v.title);
